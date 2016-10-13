@@ -1,0 +1,46 @@
+{
+  "name": "node-credstash",
+  "version": "1.0.0",
+  "description": "Node.js credstash implementation",
+  "main": "js/index.js",
+  "engines": {
+    "node": ">=4.2.3",
+    "npm": ">=2.14.7"
+  },
+  "scripts": {
+    "test": "npm run lint && npm run coverage",
+    "coverage": "node ./test/mocha.js junit coverage",
+    "lint": "./node_modules/.bin/eslint ."
+  },
+  "keywords": [
+    "credstash",
+    "kms",
+    "aws",
+    "node.js"
+  ],
+  "author": "David Tanner",
+  "license": "MIT",
+  "devDependencies": {
+    "aws-sdk-mock": "^1.5.0",
+    "chai": "^3.5.0",
+    "coveralls": "^2.11.14",
+    "eslint": "^3.7.1",
+    "eslint-config-airbnb": "^12.0.0",
+    "eslint-config-airbnb-base": "^8.0.0",
+    "eslint-plugin-chai-expect": "^1.1.1",
+    "eslint-plugin-import": "^1.16.0",
+    "eslint-plugin-jsx-a11y": "^2.2.3",
+    "eslint-plugin-react": "^6.4.1",
+    "glob": "^7.1.1",
+    "istanbul": "^0.4.4",
+    "lodash": "~3.5.0",
+    "mocha": "^3.0.2",
+    "mocha-junit-reporter": "^1.12.0",
+    "rimraf": "^2.5.4"
+  },
+  "dependencies": {
+    "aes-js": "^2.0.0",
+    "aws-sdk": "^2.5.1",
+    "debug": "^2.2.0"
+  }
+}
