@@ -1,5 +1,5 @@
 {
-  "name": "node-credstash",
+  "name": "nodecredstash",
   "version": "1.0.0",
   "description": "Node.js credstash implementation",
   "main": "js/index.js",
