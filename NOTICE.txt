@@ -1,0 +1,10 @@
+   =========================================================================
+   ==  NOTICE file corresponding to the section 4 d of                    ==
+   ==  the Apache License, Version 2.0,                                   ==
+   =========================================================================
+
+Fugue credstash
+
+This product is a port of
+credstash (https://github.com/fugue/credstash)
+Which is licensed under Apache License, Version 2.0 (https://github.com/fugue/credstash/blob/v1.11.0/LICENSE)
