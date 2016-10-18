@@ -18,7 +18,7 @@ let Credstash = require('nodecredstash');
 let credstash = new Credstash({table: 'credentials-store', awsOpts: {region: 'us-west-2'});
 
 credstash.putSecret({name: 'Death Star vulnerability', secret: 'Exhaust vent', version: 1, context: {rebel: 'true'}})
-  .then(() => credstash.get('Death Star vulnerability', 1, {rebel: 'true'})
+  .then(() => credstash.getSecret({name: 'Death Star vulnerability', version: 1, context: {rebel: 'true'}})
   .then(secret => console.log(secret));
 ```
   
@@ -208,7 +208,7 @@ Deletes all of the versions of `name`
 
 ```js
 
-credstash.deleteAll({name: 'Death Start vulnerability'})
+credstash.deleteAll({name: 'Death Star vulnerability'})
 // 'Deleting Death Star vulnerability -- version 0000000000000000001'
   .then(() => credstash.list())
   .then(list => console.log(JSON.stringify(list, null, 2));
