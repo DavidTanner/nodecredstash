@@ -71,7 +71,13 @@ module.exports = function (configuration) {
       }
 
       return ddb.getLatestVersion(name)
-        .then(res => res.version || 0);
+        .then((res) => {
+          let version = 0;
+          if (res) {
+            version = res.version;
+          }
+          return version;
+        });
     }
 
     incrementVersion(opts) {

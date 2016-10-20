@@ -83,7 +83,7 @@ describe('index', () => {
     });
 
     it('should default to version 0', () => {
-      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(undefined, { Items: [{}] }));
+      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(undefined, { Items: [] }));
       const credstash = defCredstash();
       return credstash.getHighestVersion({
         name: 'name',
@@ -98,9 +98,7 @@ describe('index', () => {
           ':name': name,
         });
         cb(undefined, {
-          Items: [
-            {},
-          ],
+          Items: [],
         });
       });
       const credstash = defCredstash();
@@ -111,6 +109,7 @@ describe('index', () => {
     });
 
     it('should reject a missing name', () => {
+      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(new Error('Error')));
       const credstash = defCredstash();
       return credstash.getHighestVersion()
         .then(() => {

@@ -1,6 +1,6 @@
 {
   "name": "nodecredstash",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Node.js credstash implementation",
   "main": "js/index.js",
   "engines": {
@@ -20,7 +20,7 @@
   ],
   "author": "David Tanner",
   "license": "MIT",
-  "repository" : {
+  "repository": {
     "type": "git",
     "url": "https://github.com/DavidTanner/nodecredstash.git"
   },
