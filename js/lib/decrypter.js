@@ -11,7 +11,7 @@ module.exports = {
 
     const aesCtr = new aesjs.ModeOfOperation.ctr(key, counter);  // eslint-disable-line new-cap
     const encoded = aesCtr.decrypt(decoded);
-    const decrypted = encoded.toString('UTF8');
+    const decrypted = aesjs.utils.utf8.fromBytes(encoded);
 
     return decrypted;
   },
