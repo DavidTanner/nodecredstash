@@ -44,7 +44,7 @@ module.exports = {
   },
 
   b64encode(buffer) {
-    return buffer.toString('base64');
+    return new Buffer(buffer).toString('base64');
   },
 
   paddedInt(padLength, i) {
