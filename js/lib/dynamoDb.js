@@ -87,6 +87,14 @@ function DynamoDB(table, awsOpts) {
       .then(res => res.Items[0]);
   };
 
+  this.getLastNVersions = (name, versions) => {
+    const params = createAllVersionsQuery(table, name);
+    params.Limit = versions || 1;
+
+    return utils.asPromise(docClient, docClient.query, params)
+      .then(res => res.Items);
+  };
+
   this.getByVersion = (name, version) => {
     const params = {
       TableName: table,

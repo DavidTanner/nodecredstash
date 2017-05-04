@@ -126,6 +126,50 @@ module.exports = function (configuration) {
         });
     }
 
+    decryptStash(stash, context) {
+      return kms.decrypt(utils.b64decode(stash.key), context)
+                .catch((err) => {
+                  let msg = `Decryption error: ${JSON.stringify(err, null, 2)}`;
+
+                  if (err.code == 'InvalidCiphertextException') {
+                    if (context) {
+                      msg = 'Could not decrypt hmac key with KMS. The encryption ' +
+                        'context provided may not match the one used when the ' +
+                        'credential was stored.';
+                    } else {
+                      msg = 'Could not decrypt hmac key with KMS. The credential may ' +
+                        'require that an encryption context be provided to decrypt ' +
+                        'it.';
+                    }
+                  }
+                  throw new Error(msg);
+                });
+    }
+
+    getAllVersions(opts) {
+      const options = Object.assign({}, opts);
+      const name = options.name;
+      const context = options.context; // optional
+
+      if (!name) {
+        return Promise.reject(new Error('name is a required parameter'));
+      }
+
+      return ddb.getLastNVersions(name, options.versions)
+                .then((stashes) => {
+                  const dataKeyPromises = stashes.map(stash =>
+                    this.decryptStash(stash, context)
+                               .then(decryptedDataKey => Object.assign(stash, { decryptedDataKey }))
+                  );
+                  return Promise.all(dataKeyPromises);
+                }).then(stashes =>
+                  stashes.map(stash => ({
+                    version: stash.version,
+                    secret: decrypter.decrypt(stash, stash.decryptedDataKey),
+                  }))
+                );
+    }
+
     getSecret(opts) {
       const options = Object.assign({}, opts);
       const name = options.name;
@@ -145,23 +189,7 @@ module.exports = function (configuration) {
           }
           return Promise.all([
             stash,
-            kms.decrypt(utils.b64decode(stash.key), context)
-              .catch((err) => {
-                let msg = `Decryption error: ${JSON.stringify(err, null, 2)}`;
-
-                if (err.code == 'InvalidCiphertextException') {
-                  if (context) {
-                    msg = 'Could not decrypt hmac key with KMS. The encryption ' +
-                      'context provided may not match the one used when the ' +
-                      'credential was stored.';
-                  } else {
-                    msg = 'Could not decrypt hmac key with KMS. The credential may ' +
-                      'require that an encryption context be provided to decrypt ' +
-                      'it.';
-                  }
-                }
-                throw new Error(msg);
-              }),
+            this.decryptStash(stash, context),
           ]);
         })
         .then(res => decrypter.decrypt(res[0], res[1]));
