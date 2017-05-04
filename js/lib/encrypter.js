@@ -9,7 +9,8 @@ module.exports = {
     const counter = new aesjs.Counter(1);
 
     const aesCtr = new aesjs.ModeOfOperation.ctr(key, counter); // eslint-disable-line new-cap
-    const encrypted = aesCtr.encrypt(plaintext);
+    const plaintextBytes = aesjs.utils.utf8.toBytes(plaintext);
+    const encrypted = aesCtr.encrypt(plaintextBytes);
     const encoded = utils.b64encode(encrypted);
     return encoded;
   },

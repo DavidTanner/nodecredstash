@@ -150,16 +150,16 @@ describe('utils', () => {
 
       return utils.mapPromise(array, i => new Promise(resolve =>
         setTimeout(resolve, 100 * (10 - i), i))
-        .then(updatFinished)
+        .then(updatFinished) // eslint-disable-line comma-dangle
       )
         .then(() => {
           finishedOrder.forEach((next, i) => next.should.equal(i));
           finishedOrder = [];
         })
         .then(() => Promise.all(array.map((next, i) => new Promise(resolve =>
-            setTimeout(resolve, 100 * (10 - i), i)
+            setTimeout(resolve, 100 * (10 - i), i) // eslint-disable-line comma-dangle
           )
-            .then(updatFinished)
+            .then(updatFinished) // eslint-disable-line comma-dangle
         )))
         .then(() => finishedOrder.forEach((next, i) => next.should.equal(4 - i)));
     });

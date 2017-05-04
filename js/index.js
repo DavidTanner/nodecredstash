@@ -205,7 +205,11 @@ module.exports = function (configuration) {
       return ddb.getAllVersions(name)
         .then(res => res.Items)
         .then(secrets => utils.mapPromise(secrets,
-          secret => this.deleteSecret({ name: secret.name, version: secret.version }))
+
+          secret => this.deleteSecret({
+            name: secret.name,
+            version: secret.version,
+          })) // eslint-disable-line comma-dangle
         );
     }
 
@@ -241,7 +245,8 @@ module.exports = function (configuration) {
           secrets
             .filter(secret => secret.version == (version || secret.version))
             .forEach((next) => {
-              position[next.name] = position[next.name] ? position[next.name] : filtered.push(next);
+              position[next.name] = position[next.name] ?
+                position[next.name] : filtered.push(next);
             });
 
           return filtered;
@@ -252,8 +257,8 @@ module.exports = function (configuration) {
               .then((plainText) => {
                 unOrdered[secret.name] = plainText;
               })
-              .catch(() => undefined)
-          )
+              .catch(() => undefined) // eslint-disable-line comma-dangle
+          ) // eslint-disable-line comma-dangle
         )
         .then(() => {
           const ordered = {};
