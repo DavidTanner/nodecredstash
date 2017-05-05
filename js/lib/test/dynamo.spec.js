@@ -142,9 +142,11 @@ describe('dynmaodDb', () => {
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
       return dynamo.getLatestVersion('')
-        .then((secret) => {
-          expect(secret).to.exist;
-          secret.should.equal(items[0]);
+        .then((res) => {
+          expect(res).to.exist;
+          expect(res.Items).to.exist;
+          expect(res.Items[0]).to.exist;
+          res.Items[0].should.equal(items[0]);
         });
     });
   });
@@ -164,9 +166,9 @@ describe('dynmaodDb', () => {
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
       return dynamo.getByVersion(name, version)
-        .then((secret) => {
-          expect(secret).to.exist;
-          secret.should.equal('Success');
+        .then((res) => {
+          expect(res).to.exist;
+          res.Item.should.equal('Success');
         });
     });
   });

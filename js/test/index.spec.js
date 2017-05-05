@@ -29,6 +29,7 @@ describe('index', () => {
       credstash.listSecrets.should.exist;
       credstash.putSecret.should.exist;
       credstash.getAllSecrets.should.exist;
+      credstash.getAllVersions.should.exist;
       credstash.getSecret.should.exist;
       credstash.deleteSecrets.should.exist;
       credstash.createDdbTable.should.exist;
@@ -344,7 +345,88 @@ describe('index', () => {
       return credstash.putSecret({
         name: 'name',
       })
+        .then(() => { throw new Error('Error'); })
         .catch(err => err.message.should.equal('secret is a required parameter'));
+    });
+  });
+
+  describe('#getAllVersions', () => {
+    it('should reject requests without a name', () => {
+      const limit = 5;
+      const credstash = defCredstash();
+      return credstash.getAllVersions({
+        limit,
+      })
+        .then(() => { throw new Error('Error'); })
+        .catch(err => err.message.should.equal('name is a required parameter'));
+    });
+
+    it('should fetch and decode the secrets', () => {
+      const name = 'name';
+      const limit = 5;
+      const rawItem = encryption.credstashKey;
+
+      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
+        params.ExpressionAttributeValues[':name'].should.equal(name);
+        params.Limit.should.equal(limit);
+        cb(undefined, {
+          Items: [
+            {
+              version: '0000000000000000006',
+              contents: rawItem.contents,
+              key: rawItem.key,
+              hmac: rawItem.hmac,
+            },
+          ],
+        });
+      });
+
+      AWS.mock('KMS', 'decrypt', (params, cb) => {
+        params.CiphertextBlob.should.deep.equal(rawItem.kms.CiphertextBlob);
+        cb(undefined, rawItem.kms);
+      });
+
+      const credentials = defCredstash();
+      return credentials.getAllVersions({
+        name,
+        limit,
+      }).then((allVersions) => {
+        allVersions[0].version.should.equal('0000000000000000006');
+        allVersions[0].secret.should.equal(rawItem.plainText);
+      });
+    });
+
+    it('should default to all versions', () => {
+      const name = 'name';
+      const rawItem = encryption.credstashKey;
+
+      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
+        params.ExpressionAttributeValues[':name'].should.equal(name);
+        expect(params.Limit).to.not.exist;
+        cb(undefined, {
+          Items: [
+            {
+              version: '0000000000000000006',
+              contents: rawItem.contents,
+              key: rawItem.key,
+              hmac: rawItem.hmac,
+            },
+          ],
+        });
+      });
+
+      AWS.mock('KMS', 'decrypt', (params, cb) => {
+        params.CiphertextBlob.should.deep.equal(rawItem.kms.CiphertextBlob);
+        cb(undefined, rawItem.kms);
+      });
+
+      const credentials = defCredstash();
+      return credentials.getAllVersions({
+        name,
+      }).then((allVersions) => {
+        allVersions[0].version.should.equal('0000000000000000006');
+        allVersions[0].secret.should.equal(rawItem.plainText);
+      });
     });
   });
 

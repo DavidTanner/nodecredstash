@@ -83,8 +83,7 @@ function DynamoDB(table, awsOpts) {
     const params = createAllVersionsQuery(table, name);
     params.Limit = 1;
 
-    return utils.asPromise(docClient, docClient.query, params)
-      .then(res => res.Items[0]);
+    return utils.asPromise(docClient, docClient.query, params);
   };
 
   this.getByVersion = (name, version) => {
@@ -92,8 +91,7 @@ function DynamoDB(table, awsOpts) {
       TableName: table,
       Key: { name, version },
     };
-    return utils.asPromise(docClient, docClient.get, params)
-      .then(res => res.Item);
+    return utils.asPromise(docClient, docClient.get, params);
   };
 
   this.createSecret = (item) => {
