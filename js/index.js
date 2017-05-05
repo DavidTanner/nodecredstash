@@ -12,16 +12,16 @@ const defaults = require('./defaults');
 const utils = require('./lib/utils');
 
 
-module.exports = function (configuration) {
-  const config = Object.assign({}, configuration);
-
-  const awsOpts = Object.assign({}, config.awsOpts);
+module.exports = function (mainConfig) {
+  const config = Object.assign({}, mainConfig);
 
   const table = config.table || defaults.DEFAULT_TABLE;
-  const kmsKey = config.kmsKey || defaults.DEFAULT_KMS_KEY;
+  const ddbOpts = Object.assign({}, config.awsOpts, config.dynamoOpts);
+  const ddb = new DynamoDB(table, ddbOpts);
 
-  const ddb = new DynamoDB(table, awsOpts);
-  const kms = new KMS(kmsKey, awsOpts);
+  const kmsKey = config.kmsKey || defaults.DEFAULT_KMS_KEY;
+  const kmsOpts = Object.assign({}, config.awsOpts, config.kmsOpts);
+  const kms = new KMS(kmsKey, kmsOpts);
 
 
   class Credstash {
@@ -54,6 +54,25 @@ module.exports = function (configuration) {
       });
 
       this.paddedInt = utils.paddedInt;
+
+      this.getConfiguration = () => {
+        const ddbOptsCopy = Object.assign({}, ddbOpts);
+        const kmsOptsCopy = Object.assign({}, kmsOpts);
+        const configCopy = Object.assign({}, config);
+
+        const configuration = {
+          config: configCopy,
+          dynamoConfig: {
+            table,
+            opts: ddbOptsCopy,
+          },
+          kmsConfig: {
+            kmsKey,
+            opts: kmsOptsCopy,
+          },
+        };
+        return configuration;
+      };
     }
 
     /**

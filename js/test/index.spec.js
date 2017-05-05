@@ -9,6 +9,7 @@ const Credstash = require('../index');
 const encryption = require('./utils/encryption');
 
 const encrypter = require('../lib/encrypter');
+const defaults = require('../defaults');
 
 
 describe('index', () => {
@@ -21,6 +22,7 @@ describe('index', () => {
   afterEach(() => {
     AWS.restore();
   });
+
   describe('#constructor', () => {
     it('has methods to match credstash', () => {
       const credstash = defCredstash();
@@ -60,6 +62,68 @@ describe('index', () => {
         err.should.equal('Error');
       })
         .then(done);
+    });
+
+    it('should return the configuration', () => {
+      const region = 'us-east-1';
+      const credstash = defCredstash();
+      const newConfig = credstash.getConfiguration();
+      newConfig.should.eql({
+        config: {
+          awsOpts: {
+            region,
+          },
+        },
+        dynamoConfig: {
+          table: defaults.DEFAULT_TABLE,
+          opts: {
+            region,
+          },
+        },
+        kmsConfig: {
+          kmsKey: defaults.DEFAULT_KMS_KEY,
+          opts: {
+            region,
+          },
+        },
+      });
+    });
+
+    it('should allow separate options for KMS and DynamoDB', () => {
+      const region = 'us-east-1';
+
+      const dynamoOpts = {
+        region: 'us-west-1',
+        endpoint: 'https://service1.region.amazonaws.com',
+      };
+
+      const kmsOpts = {
+        region: 'us-west-2',
+        endpoint: 'https://service2.region.amazonaws.com',
+      };
+
+      const credstash = defCredstash({
+        dynamoOpts,
+        kmsOpts,
+      });
+      const newConfig = credstash.getConfiguration();
+      newConfig.should.eql({
+        config: {
+          dynamoOpts,
+          kmsOpts,
+          awsOpts: {
+            region,
+          },
+        },
+        dynamoConfig: {
+          table: defaults.DEFAULT_TABLE,
+          opts: dynamoOpts,
+        },
+        kmsConfig: {
+          kmsKey: defaults.DEFAULT_KMS_KEY,
+          opts: kmsOpts,
+        },
+      });
     });
   });
 

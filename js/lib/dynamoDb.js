@@ -51,8 +51,9 @@ function createAllVersionsQuery(table, name) {
 }
 
 function DynamoDB(table, awsOpts) {
-  const docClient = new AWS.DynamoDB.DocumentClient(awsOpts);
-  const ddb = new AWS.DynamoDB(awsOpts);
+  const awsConfig = Object.assign({}, awsOpts);
+  const docClient = new AWS.DynamoDB.DocumentClient(awsConfig);
+  const ddb = new AWS.DynamoDB(awsConfig);
 
   this.getAllVersions = (name, opts) => {
     const options = Object.assign({}, opts);
