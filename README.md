@@ -11,7 +11,7 @@ nodecredstash
 =============
 
     $ npm install --save nodecredstash
-    
+
 ```js
 let Credstash = require('nodecredstash');
 
@@ -21,8 +21,8 @@ credstash.putSecret({name: 'Death Star vulnerability', secret: 'Exhaust vent', v
   .then(() => credstash.getSecret({name: 'Death Star vulnerability', version: 1, context: {rebel: 'true'}})
   .then(secret => console.log(secret));
 ```
-  
-  
+
+
 Options
 =======
 
@@ -43,7 +43,7 @@ awsOpts
 -------
 Options to be passed to the [aws-sdk](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-services.html) instance for DynamoDB and KMS
 `region` can be sent in as a parameter, or you can follow other [AWS conventions](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html) for setting the region
-ex: 
+ex:
 ```
 {
   "region": "us-east-1"
@@ -74,7 +74,7 @@ An optional callback function when you don't want to use promises;
 
 ```js
 credstash.getSecret({
-      name: 'Death Star plans', 
+      name: 'Death Star plans',
       context: {rebelShip: 'true'}
     }, function(err, res) {
     if (err) {
@@ -98,7 +98,7 @@ Create the table in DynamoDB using the [table](table) option
 Encode a secret and place it in DynamoDB.
 
 ```js
-credstash.putSecret({name: 'Death Star Vulnerability', context: { rebel: 'true'}});
+credstash.putSecret({name: 'Death Star Vulnerability', secret: 'Exhaust vent', context: { rebel: 'true'}});
 ```
 
 DynamoDB will now contain a record for this entry that looks like:
@@ -152,6 +152,22 @@ credstash.getAllSecrets({context: {rebel: 'true'}})
 {
   "Death Star vulnerability": "Exhaust vent"
 }
+```
+
+.getAllVersions({name, [limit]}, [cb])
+--------------------------------------------
+
+Retrieve all or the last N(limit) versions of a secret.
+
+```js
+credstash.getAllSecrets({name: 'Death Star vulnerability', limit: 2, context: {rebel: 'true'}})
+  .then(secrets => console.log(JSON.stringify(secrets, null, 2)));
+```
+
+
+```js
+[ { "version": "0000000000000000006", "secret": "Exhaust vent" },
+  { "version": "0000000000000000005", "secret": "Destroy vent" } ]
 ```
 
 
