@@ -42,6 +42,7 @@ default: `alias/credstash`
 awsOpts
 -------
 Options to be passed to the [aws-sdk](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-services.html) instance for DynamoDB and KMS
+Specifig configurations can be found for [DynamoDB](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB.html#constructor-property) and [KMS](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/KMS.html#constructor-property).
 `region` can be sent in as a parameter, or you can follow other [AWS conventions](http://docs.aws.amazon.com/AWSJavaScriptSDK/guide/node-configuring.html) for setting the region
 ex: 
 ```
@@ -49,6 +50,20 @@ ex:
   "region": "us-east-1"
 }
 ```
+
+[dynamoOpts](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB.html#constructor-property)
+----------
+Options that are specific to the DynamoDB configuration.  Defaults can still be assigned in awsOpts, but they can be overridden just for
+dynamoDb here
+
+
+
+[kmsOpts](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/KMS.html#constructor-property)
+----------
+Options that are specific to the KMS configuration.  Defaults can still be assigned in awsOpts, but they can be overridden just for
+kms here
+
+
 
 Function arguments
 ==================
