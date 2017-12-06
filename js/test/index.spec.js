@@ -898,6 +898,19 @@ describe('index', () => {
         });
     });
 
+    it('should return all secrets starts with "some.secret"', () => {
+      const credstash = defCredstash();
+      return credstash.getAllSecrets({ startsWith: 'some.secret' })
+        .then((res) => {
+          const [key] = Object.keys(res);
+          Object.keys(res).length.should.equal(1);
+          key.startsWith('some.secret');
+          const unsorted = Object.keys(res);
+          const sorted = Object.keys(res).sort();
+          unsorted.should.deep.equal(sorted);
+        });
+    });
+
     it('should ignore bad secrets', () => {
       const item3 = Object.assign({}, item1);
       item3.contents += 'hello broken';
