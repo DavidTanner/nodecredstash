@@ -749,7 +749,6 @@ describe('index', () => {
       const Items = Array.from({ length: 10 }, (v, i) => ({ name, version: `${i}` }));
       AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
         params.ExpressionAttributeValues[':name'].should.equal(name);
-        params.ProjectionExpression.should.equal('#name, #version');
         cb(undefined, { Items });
       });
       let counter = 0;
