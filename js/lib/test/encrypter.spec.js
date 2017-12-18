@@ -12,7 +12,9 @@ describe('encryptor', () => {
   describe('#encrypt', () => {
     const encrypt = encrypter.encrypt.bind(encrypter);
     it(`can encrypt ${encryptedItem.name} with default HMAC`, () => {
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const encrypted = encrypt(undefined, encryptedItem.plainText, kms);
       encrypted.contents.should.equal(encryptedItem.contents);
@@ -20,7 +22,9 @@ describe('encryptor', () => {
     });
 
     it(`can encrypt ${encryptedItem.name} with explicit SHA256 HMAC`, () => {
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const encrypted = encrypt('SHA256', encryptedItem.plainText, kms);
       encrypted.contents.should.equal(encryptedItem.contents);
@@ -28,7 +32,9 @@ describe('encryptor', () => {
     });
 
     it(`can encrypt ${encryptedItem.name} with SHA512 HMAC`, () => {
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const encrypted = encrypt('SHA512', encryptedItem.plainText, kms);
       encrypted.contents.should.equal(encryptedItem.contents);
@@ -36,7 +42,9 @@ describe('encryptor', () => {
     });
 
     it(`can encrypt ${encryptedItem.name} with MD5 HMAC`, () => {
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const encrypted = encrypt('MD5', encryptedItem.plainText, kms);
       encrypted.contents.should.equal(encryptedItem.contents);

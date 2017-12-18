@@ -42,7 +42,12 @@ function sliceItems(items, params) {
   const Count = Items.length;
   const ScannedCount = Count;
 
-  const results = { LastEvaluatedKey, Items, ScannedCount, Count };
+  const results = {
+    LastEvaluatedKey,
+    Items,
+    ScannedCount,
+    Count,
+  };
   return results;
 }
 
@@ -228,11 +233,10 @@ describe('dynmaodDb', () => {
 
         const hash = params.KeySchema.find(next => next.KeyType == 'HASH');
         expect(hash).to.exist;
-        hash.should.deep.equal(
-          {
-            AttributeName: 'name',
-            KeyType: 'HASH',
-          });
+        hash.should.deep.equal({
+          AttributeName: 'name',
+          KeyType: 'HASH',
+        });
         const range = params.KeySchema.find(next => next.KeyType == 'RANGE');
         expect(range).to.exist;
         range.should.deep.equal({

@@ -25,7 +25,6 @@ module.exports = function (mainConfig) {
 
 
   class Credstash {
-
     constructor() {
       const credstash = this;
       Object.getOwnPropertyNames(Credstash.prototype).forEach((key) => {
@@ -84,7 +83,7 @@ module.exports = function (mainConfig) {
 
     getHighestVersion(opts) {
       const options = Object.assign({}, opts);
-      const name = options.name;
+      const { name } = options;
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
@@ -92,10 +91,7 @@ module.exports = function (mainConfig) {
       return ddb.getLatestVersion(name)
         .then(res => res.Items[0])
         .then((res) => {
-          let version = 0;
-          if (res) {
-            version = res.version;
-          }
+          const { version = 0 } = res || {};
           return version;
         });
     }
@@ -113,19 +109,21 @@ module.exports = function (mainConfig) {
 
     putSecret(opts) {
       const options = Object.assign({}, opts);
-      const name = options.name;
+      const {
+        name,
+        secret,
+        context,
+        digest = defaults.DEFAULT_DIGEST,
+      } = options;
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
 
-      const secret = options.secret;
       if (!secret) {
         return Promise.reject(new Error('secret is a required parameter'));
       }
 
       const version = utils.sanitizeVersion(options.version, 1); // optional
-      const context = options.context; // optional
-      const digest = options.digest || defaults.DEFAULT_DIGEST; // optional
 
       return kms.getEncryptionKey(context)
         .catch((err) => {
@@ -168,9 +166,11 @@ module.exports = function (mainConfig) {
 
     getAllVersions(opts) {
       const options = Object.assign({}, opts);
-      const name = options.name;
-      const context = options.context; // optional
-      const limit = options.limit; // optional
+      const {
+        name,
+        context, // optional
+        limit, // optional
+      } = options;
 
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
@@ -181,25 +181,25 @@ module.exports = function (mainConfig) {
           const dataKeyPromises = results.Items.map(stash =>
             this.decryptStash(stash, context)
               .then(decryptedDataKey =>
-                Object.assign(stash, { decryptedDataKey })) // eslint-disable-line comma-dangle
-          );
+                Object.assign(stash, { decryptedDataKey })));
           return Promise.all(dataKeyPromises);
         }).then(stashes =>
           stashes.map(stash => ({
             version: stash.version,
             secret: decrypter.decrypt(stash, stash.decryptedDataKey),
-          })) // eslint-disable-line comma-dangle
-        );
+          })));
     }
 
     getSecret(opts) {
       const options = Object.assign({}, opts);
-      const name = options.name;
+      const {
+        name,
+        context,
+      } = options;
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
       const version = utils.sanitizeVersion(options.version); // optional
-      const context = options.context; // optional
 
       const func = version == undefined ?
         ddb.getLatestVersion(name).then(res => res.Items[0]) :
@@ -220,25 +220,26 @@ module.exports = function (mainConfig) {
 
     deleteSecrets(opts) {
       const options = Object.assign({}, opts);
-      const name = options.name;
+      const {
+        name,
+      } = options;
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
 
       return ddb.getAllVersions(name)
         .then(res => res.Items)
-        .then(secrets => utils.mapPromise(secrets,
-
-          secret => this.deleteSecret({
-            name: secret.name,
-            version: secret.version,
-          })) // eslint-disable-line comma-dangle
-        );
+        .then(secrets => utils.mapPromise(secrets, secret => this.deleteSecret({
+          name: secret.name,
+          version: secret.version,
+        })));
     }
 
     deleteSecret(opts) {
       const options = Object.assign({}, opts);
-      const name = options.name;
+      const {
+        name,
+      } = options;
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
@@ -257,8 +258,10 @@ module.exports = function (mainConfig) {
 
     getAllSecrets(opts) {
       const options = Object.assign({}, opts);
-      const version = options.version;
-      const context = options.context;
+      const {
+        version,
+        context,
+      } = options;
 
       const unOrdered = {};
       return this.listSecrets()
@@ -280,9 +283,7 @@ module.exports = function (mainConfig) {
               .then((plainText) => {
                 unOrdered[secret.name] = plainText;
               })
-              .catch(() => undefined) // eslint-disable-line comma-dangle
-          ) // eslint-disable-line comma-dangle
-        )
+              .catch(() => undefined)))
         .then(() => {
           const ordered = {};
           Object.keys(unOrdered).sort().forEach((key) => {
@@ -295,7 +296,6 @@ module.exports = function (mainConfig) {
     createDdbTable() {
       return ddb.createTable();
     }
-
   }
   return new Credstash();
 };
