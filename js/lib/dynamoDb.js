@@ -58,8 +58,6 @@ function DynamoDB(table, awsOpts) {
   this.getAllVersions = (name, opts) => {
     const options = Object.assign({}, opts);
     const params = createAllVersionsQuery(table, name);
-    params.ExpressionAttributeNames['#version'] = 'version';
-    params.ProjectionExpression = '#name, #version';
     params.Limit = options.limit;
 
     return pageResults(docClient, docClient.query, params);
