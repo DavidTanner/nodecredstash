@@ -19,7 +19,9 @@ describe('decrypter', () => {
         contents: encryptedItem.contents,
       };
 
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const plainText = decrypt(stash, kms);
       plainText.should.equal(encryptedItem.plainText);
@@ -33,7 +35,9 @@ describe('decrypter', () => {
         digest: 'SHA256',
       };
 
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const plainText = decrypt(stash, kms);
       plainText.should.equal(encryptedItem.plainText);
@@ -47,7 +51,9 @@ describe('decrypter', () => {
         digest: 'SHA512',
       };
 
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const plainText = decrypt(stash, kms);
       plainText.should.equal(encryptedItem.plainText);
@@ -61,7 +67,9 @@ describe('decrypter', () => {
         digest: 'MD5',
       };
 
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       const plainText = decrypt(stash, kms);
       plainText.should.equal(encryptedItem.plainText);
@@ -75,11 +83,13 @@ describe('decrypter', () => {
         digest: 'MD5',
       };
 
-      const kms = encryptedItem.kms;
+      const {
+        kms,
+      } = encryptedItem;
 
       try {
         const plainText = decrypt(stash, kms);
-        plainText.should.not.exist; // eslint-disable-line no-unused-expressions
+        plainText.should.not.exist;
       } catch (e) {
         e.message.should.contain('does not match stored HMAC');
       }
@@ -91,8 +101,10 @@ describe('decrypter', () => {
     const credstashItem = encryption.credstashKey;
 
     it('correctly encrypts a key', () => {
-      const encrypted = decryptAes(credstashItem.kms.Plaintext.slice(0, 32),
-        credstashItem.contents);
+      const encrypted = decryptAes(
+        credstashItem.kms.Plaintext.slice(0, 32),
+        credstashItem.contents // eslint-disable-line comma-dangle
+      );
       encrypted.should.equal(credstashItem.plainText);
     });
   });

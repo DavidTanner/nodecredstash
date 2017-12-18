@@ -1,7 +1,5 @@
 'use strict';
 
-const compatibility = require('./compatibility');
-
 module.exports = {
   item: {
     name: 'quotation',
@@ -15,10 +13,10 @@ module.exports = {
     hmacSha512: '61f7bb0d82cb8dee073529fc6a5c99486ca81b1a3800dd08f569afe381ab78f7a6eb32276491b0a8c47a9d6bf9446d731cb9a82e002b3c46349cbcba1d4bb999',
     kms: {
       get Plaintext() {
-        return compatibility.toBuffer('Expenses as material breeding insisted building to in. Continual', 'UTF8');
+        return Buffer.from('Expenses as material breeding insisted building to in. Continual', 'UTF8');
       },
       get CiphertextBlob() {
-        return compatibility.toBuffer('123');
+        return Buffer.from('123');
       },
     },
   },
@@ -29,7 +27,7 @@ module.exports = {
     hmac: '910af4beee82fc5717cddf28c7c16c38d3c2e74424b3cc928869b28293ab937e',
     digest: 'SHA256',
     get key() {
-      return compatibility.toBuffer([
+      return Buffer.from([
         254,
         231,
         224,
@@ -51,7 +49,7 @@ module.exports = {
     plainText: 'someLongAPIKey',
     kms: {
       get CiphertextBlob() {
-        return compatibility.toBuffer([
+        return Buffer.from([
           254,
           231,
           224,
@@ -71,7 +69,7 @@ module.exports = {
         ]);
       },
       get Plaintext() {
-        return compatibility.toBuffer([
+        return Buffer.from([
           143,
           152,
           50,

@@ -186,14 +186,16 @@ describe('index', () => {
 
   describe('#incrementVersion', () => {
     it('should reject non integer versions', () => {
-      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(undefined,
+      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(
+        undefined,
         {
           Items: [
             {
               version: 'hello world',
             },
           ],
-        }));
+        } // eslint-disable-line comma-dangle
+      ));
       const credstash = defCredstash();
       return credstash.incrementVersion({ name: 'name' })
         .then(() => 'Should not get here')
@@ -204,8 +206,10 @@ describe('index', () => {
     });
 
     it('should return a padded version integer', () => {
-      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(undefined,
-        { Items: [{ version: '1' }] }));
+      AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(
+        undefined,
+        { Items: [{ version: '1' }] } // eslint-disable-line comma-dangle
+      ));
       const credstash = defCredstash();
       return credstash.incrementVersion({
         name: 'name',

@@ -9,7 +9,7 @@ module.exports = {
     const decoded = utils.b64decode(encrypted);
     const counter = new aesjs.Counter(1);
 
-    const aesCtr = new aesjs.ModeOfOperation.ctr(key, counter);  // eslint-disable-line new-cap
+    const aesCtr = new aesjs.ModeOfOperation.ctr(key, counter); // eslint-disable-line new-cap
     const encoded = aesCtr.decrypt(decoded);
     const decrypted = aesjs.utils.utf8.fromBytes(encoded);
 
@@ -17,10 +17,12 @@ module.exports = {
   },
 
   decrypt(item, kms) {
-    const name = item.name;
-    const contents = item.contents;
-    const hmac = item.hmac;
-    const digest = item.digest;
+    const {
+      name,
+      contents,
+      hmac,
+      digest,
+    } = item;
 
     const keys = utils.splitKmsKey(kms.Plaintext);
 
