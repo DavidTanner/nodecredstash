@@ -902,7 +902,7 @@ describe('index', () => {
       return credstash.getAllSecrets({ startsWith: 'some.secret' })
         .then((res) => {
           Object.keys(res).length.should.equal(1);
-          Object.keys(res)[0].should.startsWith('some.secret');
+          Object.keys(res)[0].should.startWith('some.secret');
           const unsorted = Object.keys(res);
           const sorted = Object.keys(res).sort();
           unsorted.should.deep.equal(sorted);
