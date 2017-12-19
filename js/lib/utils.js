@@ -40,11 +40,11 @@ module.exports = {
   },
 
   b64decode(string) {
-    return new Buffer(string, 'base64');
+    return Buffer.from(string, 'base64');
   },
 
   b64encode(buffer) {
-    return new Buffer(buffer).toString('base64');
+    return Buffer.from(buffer).toString('base64');
   },
 
   paddedInt(padLength, i) {
