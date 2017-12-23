@@ -130,7 +130,7 @@ module.exports = function (mainConfig) {
           if (err.code == 'NotFoundException') {
             throw err;
           }
-          throw new Error(`Could not generate key using KMS key ${kmsKey}`);
+          throw new Error(`Could not generate key using KMS key ${kmsKey}, error:${JSON.stringify(err, null, 2)}`);
         })
         .then(kmsData => encrypter.encrypt(digest, secret, kmsData))
         .then(data => Object.assign({ name, version }, data))
