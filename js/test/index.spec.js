@@ -372,7 +372,7 @@ describe('index', () => {
         secret: realOne.plainText,
       })
         .then(res => expect(res).to.not.exist)
-        .catch(err => err.message.should.equal('Could not generate key using KMS key test'));
+        .catch(err => err.message.should.contains('Could not generate key using KMS key test'));
     });
 
     it('should notify of duplicate name/version pairs', () => {
