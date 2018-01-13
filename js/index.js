@@ -261,6 +261,7 @@ module.exports = function (mainConfig) {
       const {
         version,
         context,
+        startsWith,
       } = options;
 
       const unOrdered = {};
@@ -270,6 +271,7 @@ module.exports = function (mainConfig) {
           const filtered = [];
           secrets
             .filter(secret => secret.version == (version || secret.version))
+            .filter(secret => !startsWith || secret.name.startsWith(startsWith))
             .forEach((next) => {
               position[next.name] = position[next.name] ?
                 position[next.name] : filtered.push(next);
