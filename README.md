@@ -154,9 +154,11 @@ credstash.getSecret({name: 'Death Star Vulnerability', context: {rebelDroid: 'tr
 ```
 
 
-.getAllSecrets({[version], [context]}, [cb])
+.getAllSecrets({[version], [context], [startsWith]}, [cb])
 --------------------------------------------
 Retrieve all decrypted secrets from DynamoDB.
+
+The **startsWith** option will filter the response
 
 ```js
 credstash.getAllSecrets({context: {rebel: 'true'}})
