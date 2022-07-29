@@ -1,20 +1,18 @@
 module.exports = {
-  "extends": "airbnb-base",
-  "plugins": [
-    "chai-expect"
+  extends: 'airbnb-base',
+  plugins: [
+    'chai-expect',
   ],
-  "rules": {
-    "func-names": "off",
+  rules: {
+    'func-names': 'off',
 
-    // doesn't work in node v4 :(
-    "strict": "off",
-    "prefer-rest-params": "off",
-    "react/require-extension": "off",
-    "import/no-extraneous-dependencies": "off",
-    "class-methods-use-this": "off",
-    "eqeqeq": "off"
+    'prefer-object-spread': 'off',
+    'react/require-extension': 'off',
+    'import/no-extraneous-dependencies': 'off',
+    'class-methods-use-this': 'off',
+    eqeqeq: 'off',
   },
-  "env": {
-    "mocha": true
-  }
+  env: {
+    jest: true,
+  },
 };

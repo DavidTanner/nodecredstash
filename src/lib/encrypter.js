@@ -1,5 +1,3 @@
-'use strict';
-
 const aesjs = require('aes-js');
 
 const utils = require('./utils');
