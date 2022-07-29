@@ -1,5 +1,3 @@
-'use strict';
-
 const AWS = require('aws-sdk');
 
 const debug = require('debug')('credstash');
@@ -18,7 +16,6 @@ function combineResults(curr, next) {
 
   return combined;
 }
-
 
 function pageResults(that, fn, parameters, curr) {
   const params = Object.assign({}, parameters);
@@ -62,7 +59,6 @@ function DynamoDB(table, awsOpts) {
 
     return pageResults(docClient, docClient.query, params);
   };
-
 
   this.getAllSecretsAndVersions = (opts) => {
     const options = Object.assign({}, opts);
@@ -152,10 +148,12 @@ function DynamoDB(table, awsOpts) {
         debug('Creating table...');
         return utils.asPromise(ddb, ddb.createTable, params)
           .then(() => debug('Waiting for table to be created...'))
-          .then(() => new Promise(resolve => setTimeout(resolve, 2e3)))
+          .then(() => new Promise((resolve) => {
+            setTimeout(resolve, 2e3);
+          }))
           .then(() => utils.asPromise(ddb, ddb.waitFor, 'tableExists', { TableName: table }))
-          .then(() => debug('Table has been created ' +
-            'Go read the README about how to create your KMS key'));
+          .then(() => debug('Table has been created '
+            + 'Go read the README about how to create your KMS key'));
       });
   };
 }

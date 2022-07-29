@@ -1,16 +1,12 @@
-'use strict';
-
 const debug = require('debug')('credstash');
 
 const DynamoDB = require('./lib/dynamoDb');
 const KMS = require('./lib/kms');
 
-
 const encrypter = require('./lib/encrypter');
 const decrypter = require('./lib/decrypter');
 const defaults = require('./defaults');
 const utils = require('./lib/utils');
-
 
 module.exports = function (mainConfig) {
   const config = Object.assign({}, mainConfig);
@@ -23,14 +19,12 @@ module.exports = function (mainConfig) {
   const kmsOpts = Object.assign({}, config.awsOpts, config.kmsOpts);
   const kms = new KMS(kmsKey, kmsOpts);
 
-
   class Credstash {
     constructor() {
       const credstash = this;
       Object.getOwnPropertyNames(Credstash.prototype).forEach((key) => {
         const method = credstash[key];
-        credstash[key] = function () {
-          const args = Array.from(arguments);
+        credstash[key] = (...args) => {
           const lastArg = args.slice(-1)[0];
           let cb;
           if (typeof lastArg === 'function') {
@@ -89,7 +83,7 @@ module.exports = function (mainConfig) {
       }
 
       return ddb.getLatestVersion(name)
-        .then(res => res.Items[0])
+        .then((res) => res.Items[0])
         .then((res) => {
           const { version = 0 } = res || {};
           return version;
@@ -104,7 +98,7 @@ module.exports = function (mainConfig) {
           }
           throw new Error(`Can not autoincrement version. The current version: ${version} is not an int`);
         })
-        .then(version => utils.paddedInt(defaults.PAD_LEN, version + 1));
+        .then((version) => utils.paddedInt(defaults.PAD_LEN, version + 1));
     }
 
     putSecret(opts) {
@@ -132,9 +126,9 @@ module.exports = function (mainConfig) {
           }
           throw new Error(`Could not generate key using KMS key ${kmsKey}, error:${JSON.stringify(err, null, 2)}`);
         })
-        .then(kmsData => encrypter.encrypt(digest, secret, kmsData))
-        .then(data => Object.assign({ name, version }, data))
-        .then(data => ddb.createSecret(data))
+        .then((kmsData) => encrypter.encrypt(digest, secret, kmsData))
+        .then((data) => Object.assign({ name, version }, data))
+        .then((data) => ddb.createSecret(data))
         .catch((err) => {
           if (err.code == 'ConditionalCheckFailedException') {
             throw new Error(`${name} version ${version} is already in the credential store.`);
@@ -143,6 +137,7 @@ module.exports = function (mainConfig) {
           }
         });
     }
+
     decryptStash(stash, context) {
       const key = utils.b64decode(stash.key);
       return kms.decrypt(key, context)
@@ -151,13 +146,13 @@ module.exports = function (mainConfig) {
 
           if (err.code == 'InvalidCiphertextException') {
             if (context) {
-              msg = 'Could not decrypt hmac key with KMS. The encryption ' +
-                'context provided may not match the one used when the ' +
-                'credential was stored.';
+              msg = 'Could not decrypt hmac key with KMS. The encryption '
+                + 'context provided may not match the one used when the '
+                + 'credential was stored.';
             } else {
-              msg = 'Could not decrypt hmac key with KMS. The credential may ' +
-                'require that an encryption context be provided to decrypt ' +
-                'it.';
+              msg = 'Could not decrypt hmac key with KMS. The credential may '
+                + 'require that an encryption context be provided to decrypt '
+                + 'it.';
             }
           }
           throw new Error(msg);
@@ -178,16 +173,13 @@ module.exports = function (mainConfig) {
 
       return ddb.getAllVersions(name, { limit })
         .then((results) => {
-          const dataKeyPromises = results.Items.map(stash =>
-            this.decryptStash(stash, context)
-              .then(decryptedDataKey =>
-                Object.assign(stash, { decryptedDataKey })));
+          const dataKeyPromises = results.Items.map((stash) => this.decryptStash(stash, context)
+            .then((decryptedDataKey) => Object.assign(stash, { decryptedDataKey })));
           return Promise.all(dataKeyPromises);
-        }).then(stashes =>
-          stashes.map(stash => ({
-            version: stash.version,
-            secret: decrypter.decrypt(stash, stash.decryptedDataKey),
-          })));
+        }).then((stashes) => stashes.map((stash) => ({
+          version: stash.version,
+          secret: decrypter.decrypt(stash, stash.decryptedDataKey),
+        })));
     }
 
     getSecret(opts) {
@@ -201,9 +193,9 @@ module.exports = function (mainConfig) {
       }
       const version = utils.sanitizeVersion(options.version); // optional
 
-      const func = version == undefined ?
-        ddb.getLatestVersion(name).then(res => res.Items[0]) :
-        ddb.getByVersion(name, version).then(res => res.Item);
+      const func = version == undefined
+        ? ddb.getLatestVersion(name).then((res) => res.Items[0])
+        : ddb.getByVersion(name, version).then((res) => res.Item);
 
       return func
         .then((stash) => {
@@ -215,7 +207,7 @@ module.exports = function (mainConfig) {
             this.decryptStash(stash, context),
           ]);
         })
-        .then(res => decrypter.decrypt(res[0], res[1]));
+        .then((res) => decrypter.decrypt(res[0], res[1]));
     }
 
     deleteSecrets(opts) {
@@ -228,8 +220,8 @@ module.exports = function (mainConfig) {
       }
 
       return ddb.getAllVersions(name)
-        .then(res => res.Items)
-        .then(secrets => utils.mapPromise(secrets, secret => this.deleteSecret({
+        .then((res) => res.Items)
+        .then((secrets) => utils.mapPromise(secrets, (secret) => this.deleteSecret({
           name: secret.name,
           version: secret.version,
         })));
@@ -253,7 +245,7 @@ module.exports = function (mainConfig) {
 
     listSecrets() {
       return ddb.getAllSecretsAndVersions()
-        .then(res => res.Items.sort(utils.sortSecrets));
+        .then((res) => res.Items.sort(utils.sortSecrets));
     }
 
     getAllSecrets(opts) {
@@ -270,22 +262,24 @@ module.exports = function (mainConfig) {
           const position = {};
           const filtered = [];
           secrets
-            .filter(secret => secret.version == (version || secret.version))
-            .filter(secret => !startsWith || secret.name.startsWith(startsWith))
+            .filter((secret) => secret.version == (version || secret.version))
+            .filter((secret) => !startsWith || secret.name.startsWith(startsWith))
             .forEach((next) => {
-              position[next.name] = position[next.name] ?
-                position[next.name] : filtered.push(next);
+              position[next.name] = position[next.name]
+                ? position[next.name] : filtered.push(next);
             });
 
           return filtered;
         })
-        .then(secrets =>
-          utils.mapPromise(secrets, secret =>
-            this.getSecret({ name: secret.name, version: secret.version, context })
-              .then((plainText) => {
-                unOrdered[secret.name] = plainText;
-              })
-              .catch(() => undefined)))
+        .then((secrets) => utils.mapPromise(secrets, (secret) => this.getSecret({
+          name: secret.name,
+          version: secret.version,
+          context,
+        })
+          .then((plainText) => {
+            unOrdered[secret.name] = plainText;
+          })
+          .catch(() => undefined)))
         .then(() => {
           const ordered = {};
           Object.keys(unOrdered).sort().forEach((key) => {

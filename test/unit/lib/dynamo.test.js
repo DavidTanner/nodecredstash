@@ -1,27 +1,20 @@
-'use strict';
-
-/* eslint-disable no-unused-expressions, no-undef */
-
-require('../../test/setup');
-
 const _ = require('lodash');
 
-const DynamoDb = require('../dynamoDb');
-
 const AWS = require('aws-sdk-mock');
+const DynamoDb = require('../../../src/lib/dynamoDb');
 
-function findKeyIndex(items, keys) {
+const findKeyIndex = (items, keys) => {
   const index = items.findIndex((item) => {
     let matches = true;
     _.forEach(keys, (value, key) => {
-      matches = matches && item[key] == value;
+      matches = matches && item[key] === value;
     });
     return matches;
   });
   return index;
-}
+};
 
-function sliceItems(items, params) {
+const sliceItems = (items, params) => {
   const limit = params.Limit || items.length;
   let startIndex = 0;
 
@@ -49,46 +42,45 @@ function sliceItems(items, params) {
     Count,
   };
   return results;
-}
+};
 
-function compareParams(actual, expected) {
+const compareParams = (actual, expected) => {
   if (expected.TableName) {
-    actual.TableName.should.eql(expected.TableName);
+    expect(actual.TableName).toEqual(expected.TableName);
   }
   if (expected.ExpressionAttributeNames) {
-    actual.ExpressionAttributeNames.should.eql(expected.ExpressionAttributeNames);
+    expect(actual.ExpressionAttributeNames).toEqual(expected.ExpressionAttributeNames);
   }
   if (expected.KeyConditionExpression) {
-    actual.KeyConditionExpression.should.eql(expected.KeyConditionExpression);
+    expect(actual.KeyConditionExpression).toEqual(expected.KeyConditionExpression);
   }
 
   if (expected.ProjectionExpression) {
-    actual.ProjectionExpression.should.eql(expected.ProjectionExpression);
+    expect(actual.ProjectionExpression).toEqual(expected.ProjectionExpression);
   }
 
   if (expected.Limit) {
-    expect(actual.Limit).to.exist;
-    actual.Limit.should.eql(expected.Limit);
+    expect(actual.Limit).toBeDefined();
+    expect(actual.Limit).toEqual(expected.Limit);
   }
 
   if (expected.ExpressionAttributeValues) {
-    actual.ExpressionAttributeValues.should.eql(expected.ExpressionAttributeValues);
+    expect(actual.ExpressionAttributeValues).toEqual(expected.ExpressionAttributeValues);
   }
-}
+};
 
-function mockQueryScan(error, items, expectedParams) {
-  function fn(params, done) {
+const mockQueryScan = (error, items, expectedParams) => {
+  const fn = (params, done) => {
     compareParams(params, expectedParams);
     const results = sliceItems(items, params);
 
     done(error, results);
-  }
+  };
 
   AWS.mock('DynamoDB.DocumentClient', 'query', fn);
 
   AWS.mock('DynamoDB.DocumentClient', 'scan', fn);
-}
-
+};
 
 describe('dynmaodDb', () => {
   let dynamo;
@@ -105,7 +97,7 @@ describe('dynmaodDb', () => {
   });
 
   describe('#getAllSecretsAndVersions', () => {
-    it('should properly page through many results', () => {
+    test('should properly page through many results', () => {
       mockQueryScan(undefined, items, {
         Limit: 10,
         TableName,
@@ -113,16 +105,16 @@ describe('dynmaodDb', () => {
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
       return dynamo.getAllSecretsAndVersions({ limit: 10 })
-        .then(res => res.Items)
+        .then((res) => res.Items)
         .then((secrets) => {
-          secrets.length.should.be.equal(items.length);
-          secrets.should.eql(items);
+          expect(secrets).toHaveLength(items.length);
+          expect(secrets).toEqual(items);
         });
     });
   });
 
   describe('#getAllVersions', () => {
-    it('should properly page through many results', () => {
+    test('should properly page through many results', () => {
       mockQueryScan(undefined, items, {
         Limit: 10,
         TableName,
@@ -130,16 +122,16 @@ describe('dynmaodDb', () => {
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
       return dynamo.getAllVersions('', { limit: 10 })
-        .then(res => res.Items)
+        .then((res) => res.Items)
         .then((secrets) => {
-          secrets.length.should.be.equal(items.length);
-          secrets.should.eql(items);
+          expect(secrets).toHaveLength(items.length);
+          expect(secrets).toEqual(items);
         });
     });
   });
 
   describe('#getLatestVersion', () => {
-    it('should only get one item back', () => {
+    test('should only get one item back', () => {
       mockQueryScan(undefined, items, {
         Limit: 1,
         TableName,
@@ -148,159 +140,145 @@ describe('dynmaodDb', () => {
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
       return dynamo.getLatestVersion('')
         .then((res) => {
-          expect(res).to.exist;
-          expect(res.Items).to.exist;
-          expect(res.Items[0]).to.exist;
-          res.Items[0].should.equal(items[0]);
+          expect(res).toBeDefined();
+          expect(res.Items).toBeDefined();
+          expect(res.Items[0]).toBeDefined();
+          expect(res.Items[0]).toBe(items[0]);
         });
     });
   });
 
-
   describe('#getByVersion', () => {
-    it('should only get one item back', () => {
+    test('should only get one item back', () => {
       const name = 'name';
       const version = 'version';
       AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-        params.TableName.should.equal(TableName);
-        expect(params.Key).to.exist;
-        params.Key.name.should.equal(name);
-        params.Key.version.should.equal(version);
+        expect(params).toHaveProperty('TableName', TableName);
+        expect(params.Key).toBeDefined();
+        expect(params.Key).toHaveProperty(name, name);
+        expect(params.Key).toHaveProperty(version, version);
         cb(undefined, { Item: 'Success' });
       });
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
       return dynamo.getByVersion(name, version)
         .then((res) => {
-          expect(res).to.exist;
-          res.Item.should.equal('Success');
+          expect(res).toBeDefined();
+          expect(res.Item).toBe('Success');
         });
     });
   });
 
   describe('#createSecret', () => {
-    it('should create an item in DynamoDB', () => {
+    test('should create an item in DynamoDB', async () => {
       const item = items[0];
       AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => {
-        params.TableName.should.equal(TableName);
-        expect(params.ConditionExpression).to.exist;
-        params.ConditionExpression.should.equal('attribute_not_exists(#name)');
-        expect(params.ExpressionAttributeNames).to.exist;
-        params.ExpressionAttributeNames.should.deep.equal({
+        expect(params.TableName).toBe(TableName);
+        expect(params.ConditionExpression).toBeDefined();
+        expect(params.ConditionExpression).toBe('attribute_not_exists(#name)');
+        expect(params.ExpressionAttributeNames).toBeDefined();
+        expect(params.ExpressionAttributeNames).toEqual({
           '#name': 'name',
         });
-        params.Item.should.deep.equal(item);
+        expect(params.Item).toEqual(item);
         cb(undefined, 'Success');
       });
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
-      return dynamo.createSecret(item)
-        .then(res => res.should.equal('Success'));
+      await expect(dynamo.createSecret(item)).resolves.toBe('Success');
     });
   });
 
-
   describe('#deleteSecret', () => {
-    it('should delete the secret by name and version', () => {
+    test('should delete the secret by name and version', async () => {
       const name = 'name';
       const version = 'version';
       AWS.mock('DynamoDB.DocumentClient', 'delete', (params, cb) => {
-        params.TableName.should.equal(TableName);
-        expect(params.Key).to.exist;
-        params.Key.name.should.equal(name);
-        params.Key.version.should.equal(version);
+        expect(params.TableName).toBe(TableName);
+        expect(params.Key).toBeDefined();
+        expect(params.Key).toHaveProperty(name, name);
+        expect(params.Key).toHaveProperty(version, version);
         cb(undefined, 'Success');
       });
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
-      return dynamo.deleteSecret(name, version)
-        .then((secret) => {
-          expect(secret).to.exist;
-          secret.should.equal('Success');
-        });
+      await expect(dynamo.deleteSecret(name, version)).resolves.toBe('Success');
     });
   });
 
   describe('#createTable', () => {
-    it('should create the table with the HASH as name and RANGE as version', function () {
-      this.timeout(5e3);
+    test('should create the table with the HASH as name and RANGE as version', async () => {
       AWS.mock('DynamoDB', 'describeTable', (params, cb) => cb({ code: 'ResourceNotFoundException' }));
       AWS.mock('DynamoDB', 'createTable', (params, cb) => {
-        expect(params.TableName).to.exist;
-        params.TableName.should.equal(TableName);
-        expect(params.KeySchema).to.exist;
-        expect(params.KeySchema.find).to.exist;
-        params.KeySchema.length.should.equal(2);
+        expect(params.TableName).toBe(TableName);
+        expect(params.KeySchema).toBeDefined();
+        expect(params.KeySchema.find).toBeDefined();
+        expect(params.KeySchema).toHaveLength(2);
 
-        const hash = params.KeySchema.find(next => next.KeyType == 'HASH');
-        expect(hash).to.exist;
-        hash.should.deep.equal({
+        const hash = params.KeySchema.find(({ KeyType }) => KeyType === 'HASH');
+        expect(hash).toBeDefined();
+        expect(hash).toEqual({
           AttributeName: 'name',
           KeyType: 'HASH',
         });
-        const range = params.KeySchema.find(next => next.KeyType == 'RANGE');
-        expect(range).to.exist;
-        range.should.deep.equal({
+        const range = params.KeySchema.find((next) => next.KeyType === 'RANGE');
+        expect(range).toBeDefined();
+        expect(range).toEqual({
           AttributeName: 'version',
           KeyType: 'RANGE',
         });
-        expect(params.AttributeDefinitions).to.exist;
-        expect(params.AttributeDefinitions.find).to.exist;
-        params.AttributeDefinitions.length.should.equal(2);
-        const name = params.AttributeDefinitions.find(next => next.AttributeName == 'name');
-        expect(name).to.exist;
-        name.should.deep.equal({
+        expect(params.AttributeDefinitions).toBeDefined();
+        expect(params.AttributeDefinitions.find).toBeDefined();
+        expect(params.AttributeDefinitions).toHaveLength(2);
+        const name = params.AttributeDefinitions.find((next) => next.AttributeName === 'name');
+        expect(name).toBeDefined();
+        expect(name).toEqual({
           AttributeName: 'name',
           AttributeType: 'S',
         });
-        const version = params.AttributeDefinitions.find(next => next.AttributeName == 'version');
-        expect(version).to.exist;
-        version.should.deep.equal({
+        const version = params.AttributeDefinitions.find((next) => next.AttributeName === 'version');
+        expect(version).toBeDefined();
+        expect(version).toEqual({
           AttributeName: 'version',
           AttributeType: 'S',
         });
-        expect(params.ProvisionedThroughput).to.exist;
-        params.ProvisionedThroughput.should.deep.equal({
+        expect(params.ProvisionedThroughput).toBeDefined();
+        expect(params.ProvisionedThroughput).toEqual({
           ReadCapacityUnits: 1,
           WriteCapacityUnits: 1,
         });
         cb();
       });
       AWS.mock('DynamoDB', 'waitFor', (status, params, cb) => {
-        expect(status).to.exist;
-        status.should.equal('tableExists');
-        expect(params).to.exist;
-        expect(params.TableName).to.exist;
-        params.TableName.should.equal(TableName);
+        expect(status).toBeDefined();
+        expect(status).toBe('tableExists');
+        expect(params).toBeDefined();
+        expect(params.TableName).toBeDefined();
+        expect(params.TableName).toBe(TableName);
         cb();
       });
 
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
-      return dynamo.createTable();
-    });
+      await expect(dynamo.createTable()).resolves.not.toThrow();
+    }, 5e3);
 
-    it('should not create a table if one exists', () => {
+    test('should not create a table if one exists', async () => {
       AWS.mock('DynamoDB', 'describeTable', (params, cb) => cb());
       AWS.mock('DynamoDB', 'createTable', (params, cb) => {
-        expect(params).to.not.exist;
+        expect(params).toBeUndefined();
         cb();
       });
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
-      return dynamo.createTable();
+      await expect(dynamo.createTable()).resolves.not.toThrow();
     });
 
-
-    it('should throw any exception that is not ResourceNotFoundException', () => {
+    test('should throw any exception that is not ResourceNotFoundException', async () => {
       AWS.mock('DynamoDB', 'describeTable', (params, cb) => cb(new Error('Error')));
       AWS.mock('DynamoDB', 'createTable', (params, cb) => {
-        expect(params).to.not.exist;
+        expect(params).toBeUndefined();
         cb(new Error('Error'));
       });
       dynamo = new DynamoDb(TableName, { region: 'us-east-1' });
-      return dynamo.createTable()
-        .then(() => {
-          throw new Error('Should not reach here');
-        })
-        .catch(err => err.message.should.equal('Error'));
+      await expect(dynamo.createTable()).rejects.toThrow('Error');
     });
   });
 });

@@ -1,5 +1,3 @@
-'use strict';
-
 const crypto = require('crypto');
 
 const defaults = require('../defaults');
@@ -59,8 +57,7 @@ module.exports = {
     return nameDiff || b.version.localeCompare(a.version);
   },
 
-  asPromise() {
-    const args = Array.from(arguments);
+  asPromise(...args) {
     const that = args.shift();
     const fn = args.shift();
 
