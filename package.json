@@ -28,6 +28,7 @@
     "aws-sdk-mock": "^1.7.0",
     "chai": "4.1.2",
     "chai-string": "^1.4.0",
+    "conventional-changelog-conventionalcommits": "^5.0.0",
     "coveralls": "3.0.0",
     "eslint": "4.13.1",
     "eslint-config-airbnb": "16.1.0",
@@ -41,7 +42,8 @@
     "lodash": "^4.17.4",
     "mocha": "4.0.1",
     "mocha-junit-reporter": "1.15.0",
-    "rimraf": "2.6.2"
+    "rimraf": "2.6.2",
+    "semantic-release": "^19.0.3"
   },
   "dependencies": {
     "aes-js": "^3.1.0",
