@@ -1,6 +1,8 @@
-const AWS = require('aws-sdk-mock');
+const { ScanCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { DecryptCommand } = require('@aws-sdk/client-kms');
 
 const encryption = require('./utils/encryption');
+const { mockDocClient, mockKms } = require('./utils/awsSdk');
 const encrypter = require('../../src/lib/encrypter');
 const Credstash = require('../../src');
 
@@ -31,64 +33,56 @@ beforeEach(() => {
   addItem(item1);
   addItem(item2);
 
-  AWS.mock('DynamoDB.DocumentClient', 'scan', (params, cb) => {
+  mockDocClient.on(ScanCommand).callsFake(() => {
     const Items = [];
     Object.keys(items).forEach((name) => {
       const next = items[name];
       Object.keys(next).forEach((version) => Items.push(next[version]));
     });
-    cb(undefined, { Items });
+    return Promise.resolve({ Items });
   });
 
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
+  mockDocClient.on(GetCommand).callsFake((params) => {
     const Item = items[params.Key.name][params.Key.version];
-    cb(undefined, { Item });
+    return Promise.resolve({ Item });
   });
 
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    cb(undefined, kms[params.CiphertextBlob.toString('base64')]);
-  });
+  mockKms.on(DecryptCommand).callsFake((params) => Promise.resolve(kms[params.CiphertextBlob.toString('base64')]));
 });
 
-test('should return all secrets', () => {
+test('should return all secrets', async () => {
   const credstash = defCredstash();
-  return credstash.getAllSecrets()
-    .then((res) => {
-      expect(Object.keys(res)).toHaveLength(2);
-      const unsorted = Object.keys(res);
-      const sorted = Object.keys(res).sort();
-      expect(unsorted).toEqual(sorted);
-    });
+  const res = await credstash.getAllSecrets();
+  expect(Object.keys(res)).toHaveLength(2);
+  const unsorted = Object.keys(res);
+  const sorted = Object.keys(res).sort();
+  expect(unsorted).toEqual(sorted);
 });
 
-test('should return all secrets starts with "some.secret"', () => {
+test('should return all secrets starts with "some.secret"', async () => {
   const credstash = defCredstash();
-  return credstash.getAllSecrets({ startsWith: 'some.secret' })
-    .then((res) => {
-      expect(Object.keys(res)).toHaveLength(1);
-      expect(Object.keys(res)[0]).toMatch(/^some.secret.*/);
-      const unsorted = Object.keys(res);
-      const sorted = Object.keys(res).sort();
-      expect(unsorted).toEqual(sorted);
-    });
+  const res = await credstash.getAllSecrets({ startsWith: 'some.secret' });
+  expect(Object.keys(res)).toHaveLength(1);
+  expect(Object.keys(res)[0]).toMatch(/^some.secret.*/);
+  const unsorted = Object.keys(res);
+  const sorted = Object.keys(res).sort();
+  expect(unsorted).toEqual(sorted);
 });
 
-test('should ignore bad secrets', () => {
+test('should ignore bad secrets', async () => {
   const item3 = Object.assign({}, item1);
   item3.contents += 'hello broken';
   item3.name = 'differentName';
   addItem(item3);
   const credstash = defCredstash();
-  return credstash.getAllSecrets()
-    .then((res) => {
-      expect(Object.keys(res)).toHaveLength(2);
-      const unsorted = Object.keys(res);
-      const sorted = Object.keys(res).sort();
-      expect(unsorted).toEqual(sorted);
-    });
+  const res = await credstash.getAllSecrets();
+  expect(Object.keys(res)).toHaveLength(2);
+  const unsorted = Object.keys(res);
+  const sorted = Object.keys(res).sort();
+  expect(unsorted).toEqual(sorted);
 });
 
-test('should return all secrets, but only latest version', () => {
+test('should return all secrets, but only latest version', async () => {
   const item3 = Object.assign({}, item1);
   item3.version = item3.version.replace('1', '2');
   item3.plainText = 'This is a new plaintext';
@@ -99,7 +93,7 @@ test('should return all secrets, but only latest version', () => {
   addItem(item3);
 
   const credstash = defCredstash();
-  expect(credstash.getAllSecrets()).resolves.toEqual(expect.objectContaining({
+  await expect(credstash.getAllSecrets()).resolves.toEqual(expect.objectContaining({
     [item3.name]: item3.plainText,
   }));
 });

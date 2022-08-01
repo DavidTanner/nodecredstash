@@ -1,13 +1,6 @@
-const AWS = require('aws-sdk-mock');
+const { DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { defCredstash } = require('./utils/general');
-
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
+const { mockDocClient } = require('./utils/awsSdk');
 
 const name = 'name';
 const version = 'version';
@@ -18,30 +11,25 @@ test.each([
   [{}, 'name'],
   [{ name: 'name' }, 'version'],
 ])('%# should reject missing params', async (deleteParams, missingParam) => {
-  AWS.mock('DynamoDB.DocumentClient', 'delete', (params, cb) => cb(new Error('Error')));
-
   const credstash = defCredstash();
   await expect(credstash.deleteSecret(deleteParams)).rejects.toThrow(`${missingParam} is a required parameter`);
+  expect(mockDocClient.commandCalls(DeleteCommand)).toHaveLength(0);
 });
 
 test('should delete the correct item', async () => {
-  AWS.mock('DynamoDB.DocumentClient', 'delete', (params, cb) => {
-    expect(params.Key).toHaveProperty(name, name);
-    expect(params.Key).toHaveProperty(version, version);
-    cb(undefined, 'Success');
-  });
+  mockDocClient.on(DeleteCommand).resolves('Success');
 
   const credstash = defCredstash();
   await expect(credstash.deleteSecret({ name, version })).resolves.toBe('Success');
+  expect(mockDocClient.commandCalls(DeleteCommand, { Key: { name, version } })).toHaveLength(1);
 });
 
 test('should convert numerical versions into strings', async () => {
-  AWS.mock('DynamoDB.DocumentClient', 'delete', (params, cb) => {
-    expect(params.Key).toHaveProperty(name, name);
-    expect(params.Key).toHaveProperty(version, `00000000000000000${numVer}`);
-    cb(undefined, 'Success');
-  });
+  mockDocClient.on(DeleteCommand).resolves('Success');
 
   const credstash = defCredstash();
   await expect(credstash.deleteSecret({ name, version: numVer })).resolves.toBe('Success');
+  expect(mockDocClient.commandCalls(DeleteCommand, {
+    Key: { name, version: `00000000000000000${numVer}` },
+  })).toHaveLength(1);
 });

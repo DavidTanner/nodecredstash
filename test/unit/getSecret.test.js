@@ -1,40 +1,33 @@
-const AWS = require('aws-sdk-mock');
+const { GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DecryptCommand, InvalidCiphertextException } = require('@aws-sdk/client-kms');
+
 const encryption = require('./utils/encryption');
+const { mockDocClient, mockKms } = require('./utils/awsSdk');
 const { defCredstash } = require('./utils/general');
-
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
 
 test('should fetch and decode a secret', async () => {
   const name = 'name';
   const version = 'version1';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-    expect(params.Key).toHaveProperty('name', name);
-    expect(params.Key).toHaveProperty('version', version);
-    cb(undefined, {
-      Item: {
-        contents: rawItem.contents,
-        key: rawItem.key,
-        hmac: rawItem.hmac,
-      },
-    });
+  mockDocClient.on(GetCommand).resolves({
+    Item: {
+      contents: rawItem.contents,
+      key: rawItem.key,
+      hmac: rawItem.hmac,
+    },
   });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    expect(params.CiphertextBlob).toEqual(rawItem.kms.CiphertextBlob);
-    cb(undefined, rawItem.kms);
-  });
+  mockKms.on(DecryptCommand).resolves(rawItem.kms);
 
   const credentials = defCredstash();
   await expect(credentials.getSecret({
     name,
     version,
   })).resolves.toBe(rawItem.plainText);
+  expect(mockDocClient.commandCalls(GetCommand, { Key: { name, version } })).toHaveLength(1);
+  expect(mockKms.commandCalls(
+    DecryptCommand,
+    { CiphertextBlob: rawItem.kms.CiphertextBlob },
+  )).toHaveLength(1);
 });
 
 test.each([
@@ -49,21 +42,17 @@ test.each([
 test('should not reject a missing version', async () => {
   const version = 'version1';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
-    cb(undefined, {
-      Items: [
-        {
-          contents: rawItem.contents,
-          key: rawItem.key,
-          hmac: rawItem.hmac,
-          version,
-        },
-      ],
-    });
+  mockDocClient.on(QueryCommand).resolves({
+    Items: [
+      {
+        contents: rawItem.contents,
+        key: rawItem.key,
+        hmac: rawItem.hmac,
+        version,
+      },
+    ],
   });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    cb(undefined, rawItem.kms);
-  });
+  mockKms.on(DecryptCommand).resolves(rawItem.kms);
   const credentials = defCredstash();
   await expect(credentials.getSecret({ name: 'name' })).resolves.toBe(rawItem.plainText);
 });
@@ -71,47 +60,44 @@ test('should not reject a missing version', async () => {
 test('should default version to the latest', async () => {
   const name = 'name';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-    cb(new Error('Error'));
+  mockDocClient.on(GetCommand).rejects(new Error('Error'));
+  mockDocClient.on(QueryCommand, { ExpressionAttributeValues: { ':name': name } }).resolves({
+    Items: [
+      {
+        contents: rawItem.contents,
+        key: rawItem.key,
+        hmac: rawItem.hmac,
+      },
+    ],
   });
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
-    expect(params.ExpressionAttributeValues).toHaveProperty(':name', name);
-    cb(undefined, {
-      Items: [
-        {
-          contents: rawItem.contents,
-          key: rawItem.key,
-          hmac: rawItem.hmac,
-        },
-      ],
-    });
-  });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    expect(params.CiphertextBlob).toEqual(rawItem.kms.CiphertextBlob);
-    cb(undefined, rawItem.kms);
-  });
+  mockKms.on(DecryptCommand).resolves(rawItem.kms);
+
   const credentials = defCredstash();
   await expect(credentials.getSecret({
     name: 'name',
   }))
     .resolves.toBe(rawItem.plainText);
+  expect(mockDocClient.commandCalls(
+    QueryCommand,
+    { ExpressionAttributeValues: { ':name': name } },
+  )).toHaveLength(1);
+  expect(mockKms.commandCalls(
+    DecryptCommand,
+    { CiphertextBlob: rawItem.kms.CiphertextBlob },
+  )).toHaveLength(1);
 });
 
 test('should throw an exception for a missing key', async () => {
   const name = 'name';
   const version = 'version1';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-    cb(undefined, {
-      Item: {
-        contents: rawItem.contents,
-        hmac: rawItem.hmac,
-      },
-    });
+  mockDocClient.on(GetCommand).resolves({
+    Item: {
+      contents: rawItem.contents,
+      hmac: rawItem.hmac,
+    },
   });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    cb(new Error('Error'));
-  });
+  mockKms.on(DecryptCommand).rejects(new Error('Error'));
 
   const credentials = defCredstash();
   await expect(credentials.getSecret({
@@ -124,18 +110,14 @@ test('should throw an exception for invalid cipherText, no context', async () =>
   const name = 'name';
   const version = 'version1';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-    cb(undefined, {
-      Item: {
-        contents: rawItem.contents,
-        hmac: rawItem.hmac,
-        key: rawItem.key,
-      },
-    });
+  mockDocClient.on(GetCommand).resolves({
+    Item: {
+      contents: rawItem.contents,
+      hmac: rawItem.hmac,
+      key: rawItem.key,
+    },
   });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    cb({ code: 'InvalidCiphertextException' });
-  });
+  mockKms.on(DecryptCommand).rejects(new InvalidCiphertextException({}));
 
   const credentials = defCredstash();
   await expect(credentials.getSecret({
@@ -148,18 +130,14 @@ test('should throw an exception for invalid cipherText, with context', async () 
   const name = 'name';
   const version = 'version1';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-    cb(undefined, {
-      Item: {
-        contents: rawItem.contents,
-        hmac: rawItem.hmac,
-        key: rawItem.key,
-      },
-    });
+  mockDocClient.on(GetCommand).resolves({
+    Item: {
+      contents: rawItem.contents,
+      hmac: rawItem.hmac,
+      key: rawItem.key,
+    },
   });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    cb({ code: 'InvalidCiphertextException' });
-  });
+  mockKms.on(DecryptCommand).rejects(new InvalidCiphertextException({}));
 
   const credentials = defCredstash();
   await expect(credentials.getSecret({
@@ -175,18 +153,14 @@ test('should throw an exception for invalid cipherText, with context', async () 
   const name = 'name';
   const version = 'version1';
   const rawItem = encryption.credstashKey;
-  AWS.mock('DynamoDB.DocumentClient', 'get', (params, cb) => {
-    cb(undefined, {
-      Item: {
-        contents: rawItem.contents,
-        hmac: rawItem.hmac,
-        key: rawItem.key,
-      },
-    });
+  mockDocClient.on(GetCommand).resolves({
+    Item: {
+      contents: rawItem.contents,
+      hmac: rawItem.hmac,
+      key: rawItem.key,
+    },
   });
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    cb(new Error('Correct Error'));
-  });
+  mockKms.on(DecryptCommand).rejects(new Error('Correct Error'));
 
   const credentials = defCredstash();
   await expect(credentials.getSecret({

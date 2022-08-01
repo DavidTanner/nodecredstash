@@ -10,6 +10,7 @@ module.exports = {
     'react/require-extension': 'off',
     'import/no-extraneous-dependencies': 'off',
     'class-methods-use-this': 'off',
+    'no-await-in-loop': 'off',
     eqeqeq: 'off',
   },
   env: {
