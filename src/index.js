@@ -1,3 +1,5 @@
+const { NotFoundException, InvalidCiphertextException } = require('@aws-sdk/client-kms');
+const { ConditionalCheckFailedException } = require('@aws-sdk/client-dynamodb');
 const debug = require('debug')('credstash');
 
 const DynamoDB = require('./lib/dynamoDb');
@@ -75,9 +77,11 @@ module.exports = function (mainConfig) {
      * @returns {Promise.<number>}
      */
 
-    getHighestVersion(opts) {
-      const options = Object.assign({}, opts);
-      const { name } = options;
+    getHighestVersion(
+      {
+        name,
+      } = {},
+    ) {
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
@@ -93,7 +97,7 @@ module.exports = function (mainConfig) {
     incrementVersion(opts) {
       return this.getHighestVersion(opts)
         .then((version) => {
-          if (Number.parseInt(version, 10) == version) {
+          if (`${version}`.match(/^[0-9]+$/)) {
             return Number.parseInt(version, 10);
           }
           throw new Error(`Can not autoincrement version. The current version: ${version} is not an int`);
@@ -101,14 +105,15 @@ module.exports = function (mainConfig) {
         .then((version) => utils.paddedInt(defaults.PAD_LEN, version + 1));
     }
 
-    putSecret(opts) {
-      const options = Object.assign({}, opts);
-      const {
+    putSecret(
+      {
         name,
+        version: origVersion,
         secret,
         context,
         digest = defaults.DEFAULT_DIGEST,
-      } = options;
+      } = {},
+    ) {
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
@@ -117,11 +122,11 @@ module.exports = function (mainConfig) {
         return Promise.reject(new Error('secret is a required parameter'));
       }
 
-      const version = utils.sanitizeVersion(options.version, 1); // optional
+      const version = utils.sanitizeVersion(origVersion, 1); // optional
 
       return kms.getEncryptionKey(context)
         .catch((err) => {
-          if (err.code == 'NotFoundException') {
+          if (err instanceof NotFoundException) {
             throw err;
           }
           throw new Error(`Could not generate key using KMS key ${kmsKey}, error:${JSON.stringify(err, null, 2)}`);
@@ -130,7 +135,7 @@ module.exports = function (mainConfig) {
         .then((data) => Object.assign({ name, version }, data))
         .then((data) => ddb.createSecret(data))
         .catch((err) => {
-          if (err.code == 'ConditionalCheckFailedException') {
+          if (err instanceof ConditionalCheckFailedException) {
             throw new Error(`${name} version ${version} is already in the credential store.`);
           } else {
             throw err;
@@ -144,7 +149,7 @@ module.exports = function (mainConfig) {
         .catch((err) => {
           let msg = `Decryption error: ${JSON.stringify(err, null, 2)}`;
 
-          if (err.code == 'InvalidCiphertextException') {
+          if (err instanceof InvalidCiphertextException) {
             if (context) {
               msg = 'Could not decrypt hmac key with KMS. The encryption '
                 + 'context provided may not match the one used when the '
@@ -159,14 +164,13 @@ module.exports = function (mainConfig) {
         });
     }
 
-    getAllVersions(opts) {
-      const options = Object.assign({}, opts);
-      const {
+    getAllVersions(
+      {
         name,
         context, // optional
         limit, // optional
-      } = options;
-
+      } = {},
+    ) {
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
@@ -182,18 +186,19 @@ module.exports = function (mainConfig) {
         })));
     }
 
-    getSecret(opts) {
-      const options = Object.assign({}, opts);
-      const {
+    getSecret(
+      {
         name,
         context,
-      } = options;
+        version: origVersion,
+      } = {},
+    ) {
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
-      const version = utils.sanitizeVersion(options.version); // optional
+      const version = utils.sanitizeVersion(origVersion); // optional
 
-      const func = version == undefined
+      const func = version === undefined
         ? ddb.getLatestVersion(name).then((res) => res.Items[0])
         : ddb.getByVersion(name, version).then((res) => res.Item);
 
@@ -210,11 +215,7 @@ module.exports = function (mainConfig) {
         .then((res) => decrypter.decrypt(res[0], res[1]));
     }
 
-    deleteSecrets(opts) {
-      const options = Object.assign({}, opts);
-      const {
-        name,
-      } = options;
+    deleteSecrets({ name } = {}) {
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
@@ -227,15 +228,16 @@ module.exports = function (mainConfig) {
         })));
     }
 
-    deleteSecret(opts) {
-      const options = Object.assign({}, opts);
-      const {
+    deleteSecret(
+      {
         name,
-      } = options;
+        version: origVersion,
+      } = {},
+    ) {
       if (!name) {
         return Promise.reject(new Error('name is a required parameter'));
       }
-      const version = utils.sanitizeVersion(options.version);
+      const version = utils.sanitizeVersion(origVersion);
       if (!version) {
         return Promise.reject(new Error('version is a required parameter'));
       }
@@ -248,21 +250,20 @@ module.exports = function (mainConfig) {
         .then((res) => res.Items.sort(utils.sortSecrets));
     }
 
-    getAllSecrets(opts) {
-      const options = Object.assign({}, opts);
-      const {
+    getAllSecrets(
+      {
         version,
         context,
         startsWith,
-      } = options;
-
+      } = {},
+    ) {
       const unOrdered = {};
       return this.listSecrets()
         .then((secrets) => {
           const position = {};
           const filtered = [];
           secrets
-            .filter((secret) => secret.version == (version || secret.version))
+            .filter((secret) => secret.version === (version || secret.version))
             .filter((secret) => !startsWith || secret.name.startsWith(startsWith))
             .forEach((next) => {
               position[next.name] = position[next.name]

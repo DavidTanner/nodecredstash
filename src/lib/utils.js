@@ -3,6 +3,10 @@ const crypto = require('crypto');
 const defaults = require('../defaults');
 
 module.exports = {
+  pause: (timeout) => new Promise((resolve) => {
+    setTimeout(resolve, timeout, undefined);
+  }),
+
   calculateHmac(digestArg, key, encrypted) {
     const digest = digestArg || 'SHA256';
     const decoded = this.b64decode(encrypted);

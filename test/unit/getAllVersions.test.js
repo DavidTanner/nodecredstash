@@ -1,21 +1,16 @@
-const AWS = require('aws-sdk-mock');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DecryptCommand } = require('@aws-sdk/client-kms');
+
 const encryption = require('./utils/encryption');
+const { mockDocClient, mockKms } = require('./utils/awsSdk');
 const { defCredstash } = require('./utils/general');
 
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
-
-test('should reject requests without a name', async () => {
-  const limit = 5;
+test.each([
+  undefined,
+  { limit: 5 },
+])('%# should reject requests without a name', async (params) => {
   const credstash = defCredstash();
-  await expect(credstash.getAllVersions({
-    limit,
-  })).rejects.toThrow('name is a required parameter');
+  await expect(credstash.getAllVersions(params)).rejects.toThrow('name is a required parameter');
 });
 
 test('should fetch and decode the secrets', async () => {
@@ -23,65 +18,65 @@ test('should fetch and decode the secrets', async () => {
   const limit = 5;
   const rawItem = encryption.credstashKey;
 
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
-    expect(params.ExpressionAttributeValues).toHaveProperty(':name', name);
-    expect(params.Limit).toBe(limit);
-    cb(undefined, {
-      Items: [
-        {
-          version: '0000000000000000006',
-          contents: rawItem.contents,
-          key: rawItem.key,
-          hmac: rawItem.hmac,
-        },
-      ],
-    });
+  mockDocClient.on(QueryCommand).resolves({
+    Items: [
+      {
+        version: '0000000000000000006',
+        contents: rawItem.contents,
+        key: rawItem.key,
+        hmac: rawItem.hmac,
+      },
+    ],
   });
 
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    expect(params.CiphertextBlob).toEqual(rawItem.kms.CiphertextBlob);
-    cb(undefined, rawItem.kms);
-  });
+  mockKms.on(DecryptCommand).resolves(rawItem.kms);
 
   const credentials = defCredstash();
-  return credentials.getAllVersions({
+  const allVersions = await credentials.getAllVersions({
     name,
     limit,
-  }).then((allVersions) => {
-    expect(allVersions[0]).toHaveProperty('version', '0000000000000000006');
-    expect(allVersions[0]).toHaveProperty('secret', rawItem.plainText);
   });
+  expect(allVersions[0]).toHaveProperty('version', '0000000000000000006');
+  expect(allVersions[0]).toHaveProperty('secret', rawItem.plainText);
+  expect(mockDocClient.commandCalls(
+    QueryCommand,
+    { Limit: limit, ExpressionAttributeValues: { ':name': name } },
+  )).toHaveLength(1);
+  expect(mockKms.commandCalls(
+    DecryptCommand,
+    { CiphertextBlob: rawItem.kms.CiphertextBlob },
+  )).toHaveLength(1);
 });
 
-test('should default to all versions', () => {
+test('should default to all versions', async () => {
   const name = 'name';
   const rawItem = encryption.credstashKey;
 
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
-    expect(params.ExpressionAttributeValues).toHaveProperty(':name', name);
-    expect(params.Limit).toBeUndefined();
-    cb(undefined, {
-      Items: [
-        {
-          version: '0000000000000000006',
-          contents: rawItem.contents,
-          key: rawItem.key,
-          hmac: rawItem.hmac,
-        },
-      ],
-    });
+  mockDocClient.on(QueryCommand).resolves({
+    Items: [
+      {
+        version: '0000000000000000006',
+        contents: rawItem.contents,
+        key: rawItem.key,
+        hmac: rawItem.hmac,
+      },
+    ],
   });
 
-  AWS.mock('KMS', 'decrypt', (params, cb) => {
-    expect(params.CiphertextBlob).toEqual(rawItem.kms.CiphertextBlob);
-    cb(undefined, rawItem.kms);
-  });
+  mockKms.on(DecryptCommand).resolves(rawItem.kms);
 
   const credentials = defCredstash();
-  return credentials.getAllVersions({
+  const allVersions = await credentials.getAllVersions({
     name,
-  }).then((allVersions) => {
-    expect(allVersions[0]).toHaveProperty('version', '0000000000000000006');
-    expect(allVersions[0]).toHaveProperty('secret', rawItem.plainText);
   });
+  expect(allVersions[0]).toHaveProperty('version', '0000000000000000006');
+  expect(allVersions[0]).toHaveProperty('secret', rawItem.plainText);
+  expect(mockDocClient.commandCalls(
+    QueryCommand,
+    { Limit: undefined, ExpressionAttributeValues: { ':name': name } },
+  )).toHaveLength(1);
+  expect(mockKms.commandCalls(
+    DecryptCommand,
+    { CiphertextBlob: rawItem.kms.CiphertextBlob },
+  )).toHaveLength(1);
 });

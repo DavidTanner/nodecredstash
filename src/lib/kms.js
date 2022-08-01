@@ -1,27 +1,26 @@
-const AWS = require('aws-sdk');
-
-const utils = require('./utils');
+const { KMSClient, DecryptCommand, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
 
 function KMS(kmsKey, awsOpts) {
-  const kms = new AWS.KMS(awsOpts);
+  const kms = new KMSClient(awsOpts);
 
-  this.decrypt = (key, context) => {
-    const params = {
+  this.decrypt = async (key, context) => {
+    const cmd = new DecryptCommand({
       CiphertextBlob: key,
       EncryptionContext: context,
-    };
-
-    return utils.asPromise(kms, kms.decrypt, params);
+    });
+    const result = await kms.send(cmd);
+    return result;
   };
 
-  this.getEncryptionKey = (context) => {
-    const params = {
+  this.getEncryptionKey = async (context) => {
+    const cmd = new GenerateDataKeyCommand({
       NumberOfBytes: 64,
       EncryptionContext: context,
       KeyId: kmsKey,
-    };
+    });
 
-    return utils.asPromise(kms, kms.generateDataKey, params);
+    const result = await kms.send(cmd);
+    return result;
   };
 }
 

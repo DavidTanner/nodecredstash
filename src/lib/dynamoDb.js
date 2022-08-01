@@ -1,8 +1,21 @@
-const AWS = require('aws-sdk');
+const {
+  DynamoDBClient,
+  DescribeTableCommand,
+  CreateTableCommand,
+  waitUntilTableExists, ResourceNotFoundException,
+} = require('@aws-sdk/client-dynamodb');
+const {
+  DynamoDBDocumentClient,
+  PutCommand,
+  DeleteCommand,
+  ScanCommand,
+  QueryCommand,
+  GetCommand,
+} = require('@aws-sdk/lib-dynamodb');
 
 const debug = require('debug')('credstash');
 
-const utils = require('./utils');
+const { pause } = require('./utils');
 
 function combineResults(curr, next) {
   if (!curr) {
@@ -17,102 +30,104 @@ function combineResults(curr, next) {
   return combined;
 }
 
-function pageResults(that, fn, parameters, curr) {
-  const params = Object.assign({}, parameters);
-
-  if (curr) {
-    params.ExclusiveStartKey = curr.LastEvaluatedKey;
-  }
-  return utils.asPromise(that, fn, params)
-    .then((next) => {
-      const combined = combineResults(curr, next);
-      const nextStep = next.LastEvaluatedKey ? pageResults(that, fn, params, combined) : combined;
-      return nextStep;
-    });
-}
-
-function createAllVersionsQuery(table, name) {
-  const params = {
-    TableName: table,
-    ConsistentRead: true,
-    ScanIndexForward: false,
-    KeyConditionExpression: '#name = :name',
-    ExpressionAttributeNames: {
-      '#name': 'name',
-    },
-    ExpressionAttributeValues: {
-      ':name': name,
-    },
-  };
-  return params;
-}
-
-function DynamoDB(table, awsOpts) {
+function DynamoDB(TableName, awsOpts) {
   const awsConfig = Object.assign({}, awsOpts);
-  const docClient = new AWS.DynamoDB.DocumentClient(awsConfig);
-  const ddb = new AWS.DynamoDB(awsConfig);
+  const ddb = new DynamoDBClient(awsConfig);
+  const docClient = DynamoDBDocumentClient.from(ddb);
 
-  this.getAllVersions = (name, opts) => {
-    const options = Object.assign({}, opts);
-    const params = createAllVersionsQuery(table, name);
-    params.Limit = options.limit;
-
-    return pageResults(docClient, docClient.query, params);
-  };
-
-  this.getAllSecretsAndVersions = (opts) => {
-    const options = Object.assign({}, opts);
+  function createAllVersionsQuery(name, Limit) {
     const params = {
-      TableName: table,
-      Limit: options.limit,
-      ProjectionExpression: '#name, #version',
+      TableName,
+      ConsistentRead: true,
+      ScanIndexForward: false,
+      KeyConditionExpression: '#name = :name',
       ExpressionAttributeNames: {
         '#name': 'name',
-        '#version': 'version',
+      },
+      Limit,
+      ExpressionAttributeValues: {
+        ':name': name,
       },
     };
-    return pageResults(docClient, docClient.scan, params);
+    return params;
+  }
+
+  this.getAllVersions = async (name, opts = {}) => {
+    let LastEvaluatedKey;
+    let curr;
+    do {
+      const params = createAllVersionsQuery(name, opts.limit);
+      const next = await docClient.send(new QueryCommand({
+        ...params,
+        ExclusiveStartKey: LastEvaluatedKey,
+      }));
+      curr = combineResults(curr, next);
+      ({ LastEvaluatedKey } = next);
+    } while (LastEvaluatedKey);
+
+    return curr;
+  };
+
+  this.getAllSecretsAndVersions = async ({ limit } = {}) => {
+    let LastEvaluatedKey;
+    let curr;
+    do {
+      const cmd = new ScanCommand({
+        TableName,
+        Limit: limit,
+        ProjectionExpression: '#name, #version',
+        ExclusiveStartKey: LastEvaluatedKey,
+        ExpressionAttributeNames: {
+          '#name': 'name',
+          '#version': 'version',
+        },
+      });
+      const next = await docClient.send(cmd);
+      curr = combineResults(curr, next);
+      ({ LastEvaluatedKey } = next);
+    } while (LastEvaluatedKey);
+
+    return curr;
   };
 
   this.getLatestVersion = (name) => {
-    const params = createAllVersionsQuery(table, name);
-    params.Limit = 1;
-
-    return utils.asPromise(docClient, docClient.query, params);
+    const params = createAllVersionsQuery(name, 1);
+    return docClient.send(new QueryCommand(params));
   };
 
   this.getByVersion = (name, version) => {
     const params = {
-      TableName: table,
+      TableName,
       Key: { name, version },
     };
-    return utils.asPromise(docClient, docClient.get, params);
+    return docClient.send(new GetCommand(params));
   };
 
-  this.createSecret = (item) => {
+  this.createSecret = async (item) => {
     const params = {
       Item: item,
       ConditionExpression: 'attribute_not_exists(#name)', // Never update an existing key
-      TableName: table,
+      TableName,
 
       ExpressionAttributeNames: {
         '#name': 'name',
       },
     };
-    return utils.asPromise(docClient, docClient.put, params);
+    const result = await docClient.send(new PutCommand(params));
+    return result;
   };
 
   this.deleteSecret = (name, version) => {
     const params = {
-      TableName: table,
+      TableName,
       Key: { name, version },
     };
-    return utils.asPromise(docClient, docClient.delete, params);
+    return docClient.send(new DeleteCommand(params));
   };
 
-  this.createTable = () => {
-    const params = {
-      TableName: table,
+  this.createTable = async () => {
+    const createTableCommand = new CreateTableCommand({
+      TableName,
       KeySchema: [
         {
           AttributeName: 'name',
@@ -137,24 +152,23 @@ function DynamoDB(table, awsOpts) {
         ReadCapacityUnits: 1,
         WriteCapacityUnits: 1,
       },
-    };
+    });
 
-    return utils.asPromise(ddb, ddb.describeTable, { TableName: table })
-      .then(() => debug('Credential Store table already exists'))
-      .catch((err) => {
-        if (err.code != 'ResourceNotFoundException') {
-          throw err;
-        }
-        debug('Creating table...');
-        return utils.asPromise(ddb, ddb.createTable, params)
-          .then(() => debug('Waiting for table to be created...'))
-          .then(() => new Promise((resolve) => {
-            setTimeout(resolve, 2e3);
-          }))
-          .then(() => utils.asPromise(ddb, ddb.waitFor, 'tableExists', { TableName: table }))
-          .then(() => debug('Table has been created '
-            + 'Go read the README about how to create your KMS key'));
-      });
+    try {
+      await ddb.send(new DescribeTableCommand({ TableName }));
+      debug('Credential Store table already exists');
+    } catch (err) {
+      if (!(err instanceof ResourceNotFoundException)) {
+        throw err;
+      }
+      debug('Creating table...');
+      await ddb.send(createTableCommand);
+      debug('Waiting for table to be created...');
+      await pause(2e3);
+      await waitUntilTableExists({ client: ddb, maxWaitTime: 900 }, { TableName });
+      debug('Table has been created');
+      debug('Please go to the README to learn how to create your KMS key');
+    }
   };
 }
 

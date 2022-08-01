@@ -1,14 +1,8 @@
-const AWS = require('aws-sdk-mock');
+const { DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
 const defaults = require('../../src/defaults');
+
 const { defCredstash } = require('./utils/general');
-
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
+const { mockDdb } = require('./utils/awsSdk');
 
 test('has methods to match credstash', () => {
   const credstash = defCredstash();
@@ -25,28 +19,27 @@ test('has methods to match credstash', () => {
 
 test('should use a callback if provided', (done) => {
   const table = 'TableNameNonDefault';
-  AWS.mock('DynamoDB', 'describeTable', (params, cb) => {
-    expect(params.TableName).toBe(table);
-    cb();
-  });
+  mockDdb.on(DescribeTableCommand).resolves();
   const credstash = defCredstash({ table });
   credstash.createDdbTable((err) => {
-    expect(err).toBeUndefined();
-    done();
+    try {
+      expect(err).toBeUndefined();
+      expect(mockDdb.commandCalls(DescribeTableCommand, { TableName: table })).toHaveLength(1);
+      done();
+    } catch (e) {
+      done(e);
+    }
   });
 });
 
 test('should use a callback for errors, and not throw an exception', (done) => {
   const table = 'TableNameNonDefault';
-  AWS.mock('DynamoDB', 'describeTable', (params, cb) => {
-    expect(params.TableName).toBe(table);
-    cb('Error');
-  });
+  mockDdb.on(DescribeTableCommand).rejects('Error');
   const credstash = defCredstash({ table });
-  credstash.createDdbTable((...args) => {
-    const [err] = args;
+  credstash.createDdbTable((err) => {
     expect(err).toBeDefined();
-    expect(err).toBe('Error');
+    expect(err).toHaveProperty('message', 'Error');
+    expect(mockDdb.commandCalls(DescribeTableCommand, { TableName: table })).toHaveLength(1);
   })
     .then(done);
 });

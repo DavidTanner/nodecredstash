@@ -1,20 +1,10 @@
-const AWS = require('aws-sdk-mock');
+const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const { defCredstash } = require('./utils/general');
+const { mockDocClient } = require('./utils/awsSdk');
 
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
-
-test('should return all secret names and versions', () => {
+test('should return all secret names and versions', async () => {
   const items = [{ name: 'name', version: 'version1' }, { name: 'name', version: 'version2' }];
-  AWS.mock('DynamoDB.DocumentClient', 'scan', (params, cb) => cb(undefined, { Items: items }));
+  mockDocClient.on(ScanCommand).resolves({ Items: items });
   const credstash = defCredstash();
-  return credstash.listSecrets()
-    .then((results) => {
-      expect(results).toEqual(items);
-    });
+  await expect(credstash.listSecrets()).resolves.toEqual(items);
 });

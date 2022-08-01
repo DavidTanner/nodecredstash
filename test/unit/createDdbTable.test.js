@@ -1,20 +1,12 @@
-const AWS = require('aws-sdk-mock');
+const { DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
+
 const { defCredstash } = require('./utils/general');
-
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
+const { mockDdb } = require('./utils/awsSdk');
 
 test('should call createTable with the table name provided', async () => {
   const table = 'TableNameNonDefault';
-  AWS.mock('DynamoDB', 'describeTable', (params, cb) => {
-    expect(params).toHaveProperty('TableName', table);
-    cb();
-  });
+  mockDdb.on(DescribeTableCommand).resolves();
   const credstash = defCredstash({ table });
   await expect(credstash.createDdbTable()).resolves.not.toThrow();
+  expect(mockDdb.commandCalls(DescribeTableCommand, { TableName: table })).toHaveLength(1);
 });

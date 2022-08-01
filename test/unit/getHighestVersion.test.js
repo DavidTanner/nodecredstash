@@ -1,13 +1,6 @@
-const AWS = require('aws-sdk-mock');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const { defCredstash } = require('./utils/general');
-
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
+const { mockDocClient } = require('./utils/awsSdk');
 
 test('should return the highest version', async () => {
   const Items = [
@@ -20,7 +13,7 @@ test('should return the highest version', async () => {
       version: 'version2',
     },
   ];
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(undefined, { Items }));
+  mockDocClient.on(QueryCommand).resolves({ Items });
   const credstash = defCredstash();
   await expect(credstash.getHighestVersion({
     name: 'name1',
@@ -28,7 +21,7 @@ test('should return the highest version', async () => {
 });
 
 test('should default to version 0', async () => {
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(undefined, { Items: [] }));
+  mockDocClient.on(QueryCommand).resolves({ Items: [] });
   const credstash = defCredstash();
   await expect(credstash.getHighestVersion({
     name: 'name',
@@ -37,11 +30,11 @@ test('should default to version 0', async () => {
 
 test('should request by name', async () => {
   const name = 'name';
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
+  mockDocClient.on(QueryCommand).callsFake((params) => {
     expect(params.ExpressionAttributeValues).toEqual({
       ':name': name,
     });
-    cb(undefined, {
+    return Promise.resolve({
       Items: [],
     });
   });
@@ -52,7 +45,7 @@ test('should request by name', async () => {
 });
 
 test('should reject a missing name', async () => {
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(new Error('Error')));
+  mockDocClient.on(QueryCommand).rejects(new Error('Error'));
   const credstash = defCredstash();
   await expect(credstash.getHighestVersion())
     .rejects.toThrow('name is a required parameter');

@@ -15,6 +15,7 @@ module.exports = {
       lines: 100,
     },
   },
+  // setupFilesAfterEnv: ['<rootDir>/test/unit/utils/awsSetup.js'],
   coveragePathIgnorePatterns: ['<rootDir>/test/', '/node_modules/'],
   clearMocks: true,
   resetMocks: true,

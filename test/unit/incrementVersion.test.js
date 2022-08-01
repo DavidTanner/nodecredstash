@@ -1,25 +1,16 @@
-const AWS = require('aws-sdk-mock');
+const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+
 const { defCredstash } = require('./utils/general');
-
-beforeEach(() => {
-  AWS.restore();
-});
-
-afterEach(() => {
-  AWS.restore();
-});
+const { mockDocClient } = require('./utils/awsSdk');
 
 test('should reject non integer versions', () => {
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(
-    undefined,
-    {
-      Items: [
-        {
-          version: 'hello world',
-        },
-      ],
-    } // eslint-disable-line comma-dangle
-  ));
+  mockDocClient.on(QueryCommand).resolves({
+    Items: [
+      {
+        version: 'hello world',
+      },
+    ],
+  });
   const credstash = defCredstash();
   return credstash.incrementVersion({ name: 'name' })
     .then(() => 'Should not get here')
@@ -29,26 +20,17 @@ test('should reject non integer versions', () => {
 });
 
 test('should return a padded version integer', async () => {
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => cb(
-    undefined,
-    { Items: [{ version: '1' }] },
-  ));
+  mockDocClient.on(QueryCommand).resolves({ Items: [{ version: '1' }] });
   const credstash = defCredstash();
   await expect(credstash.incrementVersion({ name: 'name' })).resolves.toBe('0000000000000000002');
 });
 
 test('should accept name as a param', async () => {
   const name = 'name';
-  AWS.mock('DynamoDB.DocumentClient', 'query', (params, cb) => {
-    expect(params.ExpressionAttributeValues).toEqual({ ':name': name });
-    cb(undefined, {
-      Items: [
-        {
-          version: '1',
-        },
-      ],
-    });
-  });
+  mockDocClient.on(
+    QueryCommand,
+    { ExpressionAttributeValues: { ':name': name } },
+  ).resolves({ Items: [{ version: '1' }] });
   const credstash = defCredstash();
   await expect(credstash.incrementVersion({ name })).resolves.toBe('0000000000000000002');
 });

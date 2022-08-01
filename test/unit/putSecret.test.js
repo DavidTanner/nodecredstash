@@ -1,31 +1,31 @@
-const AWS = require('aws-sdk-mock');
+const { ConditionalCheckFailedException } = require('@aws-sdk/client-dynamodb');
+const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { GenerateDataKeyCommand, NotFoundException, KMSInternalException } = require('@aws-sdk/client-kms');
 const encryption = require('./utils/encryption');
 const { defCredstash } = require('./utils/general');
+const { mockKms, mockDocClient } = require('./utils/awsSdk');
 
 let realOne;
 
 beforeEach(() => {
-  AWS.restore();
   realOne = Object.assign({}, encryption.credstashKey);
 });
 
-afterEach(() => {
-  AWS.restore();
-});
-
 test('should create a new stash', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(undefined, realOne.kms));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => {
-    expect(params.Item).toEqual(expect.objectContaining({
-      hmac: realOne.hmac,
-      key: realOne.key,
-      name: realOne.name,
-      contents: realOne.contents,
-      version: realOne.version,
-      digest: realOne.digest,
-    }));
-    cb(undefined, 'Success');
-  });
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(
+    PutCommand,
+    {
+      Item: {
+        hmac: realOne.hmac,
+        key: realOne.key,
+        name: realOne.name,
+        contents: realOne.contents,
+        version: realOne.version,
+        digest: realOne.digest,
+      },
+    },
+  ).resolves('Success');
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: realOne.name,
@@ -35,11 +35,8 @@ test('should create a new stash', async () => {
 });
 
 test('should default the version to a zero padded 1', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(undefined, realOne.kms));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => {
-    expect(params.Item).toHaveProperty('version', '0000000000000000001');
-    cb(undefined, 'Success');
-  });
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(PutCommand, { Item: { version: '0000000000000000001' } }).resolves('Success');
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: realOne.name,
@@ -48,11 +45,8 @@ test('should default the version to a zero padded 1', async () => {
 });
 
 test('should convert numerical versions to padded strings', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(undefined, realOne.kms));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => {
-    expect(params.Item).toHaveProperty('version', '0000000000000000042');
-    cb(undefined, 'Success');
-  });
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(PutCommand, { Item: { version: '0000000000000000042' } }).resolves('Success');
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: realOne.name,
@@ -62,11 +56,8 @@ test('should convert numerical versions to padded strings', async () => {
 });
 
 test('should default the digest to SHA256', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(undefined, realOne.kms));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => {
-    expect(params.Item).toHaveProperty('digest', 'SHA256');
-    cb(undefined, 'Success');
-  });
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(PutCommand, { Item: { digest: 'SHA256' } }).resolves('Success');
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: realOne.name,
@@ -76,11 +67,8 @@ test('should default the digest to SHA256', async () => {
 
 test('should use the correct context', async () => {
   const context = { key: 'value' };
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => {
-    expect(params.EncryptionContext).toEqual(context);
-    cb(undefined, realOne.kms);
-  });
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => cb(undefined, 'Success'));
+  mockKms.on(GenerateDataKeyCommand, { EncryptionContext: context }).resolves(realOne.kms);
+  mockDocClient.on(PutCommand).resolves('Success');
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: realOne.name,
@@ -92,11 +80,8 @@ test('should use the correct context', async () => {
 
 test('should use the provided digest', async () => {
   const digest = 'MD5';
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(undefined, realOne.kms));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => {
-    expect(params.Item.digest).toBe(digest);
-    cb(undefined, 'Success');
-  });
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(PutCommand, { Item: { digest } }).resolves('Success');
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: realOne.name,
@@ -107,31 +92,20 @@ test('should use the provided digest', async () => {
 });
 
 test('should rethrow a NotFoundException from KMS', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb({
-    code: 'NotFoundException',
-    message: 'Success',
-    random: 1234,
-  }));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => cb(new Error('Error')));
+  const error = new NotFoundException();
+  mockKms.on(GenerateDataKeyCommand).rejects(error);
   const credstash = defCredstash();
-  return credstash.putSecret({
+  await expect(credstash.putSecret({
     name: realOne.name,
     secret: realOne.plainText,
-  })
-    .then((res) => expect(res).toBeUndefined())
-    .catch((err) => {
-      expect(err.message).toBe('Success');
-      expect(err.code).toBe('NotFoundException');
-      expect(err.random).toBe(1234);
-    });
+  }))
+    .rejects.toThrow(error);
+  expect(mockDocClient.commandCalls(PutCommand)).toHaveLength(0);
 });
 
 test('should throw an error for a bad KMS key', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb({
-    code: 'Key Exception of some other sort',
-    message: 'Failure',
-  }));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => cb(new Error('Error')));
+  mockKms.on(GenerateDataKeyCommand).rejects(new KMSInternalException({ message: 'Failure' }));
+  mockDocClient.on(PutCommand).rejects(new Error('Error'));
   const credstash = defCredstash({
     kmsKey: 'test',
   });
@@ -142,10 +116,8 @@ test('should throw an error for a bad KMS key', async () => {
 });
 
 test('should notify of duplicate name/version pairs', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(undefined, realOne.kms));
-  AWS.mock('DynamoDB.DocumentClient', 'put', (params, cb) => cb({
-    code: 'ConditionalCheckFailedException',
-  }));
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(PutCommand).rejects(new ConditionalCheckFailedException());
   const credstash = defCredstash({
     kmsKey: 'test',
   });
@@ -160,15 +132,15 @@ test.each([
   {},
   { secret: 'secret' },
 ])('%# should reject missing name', async (putSecretParams) => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(new Error('Error')));
   const credstash = defCredstash();
   await expect(credstash.putSecret(putSecretParams)).rejects.toThrow('name is a required parameter');
+  expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(0);
 });
 
 test('should reject a missing secret', async () => {
-  AWS.mock('KMS', 'generateDataKey', (params, cb) => cb(new Error('Error')));
   const credstash = defCredstash();
   await expect(credstash.putSecret({
     name: 'name',
   })).rejects.toThrow('secret is a required parameter');
+  expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(0);
 });
