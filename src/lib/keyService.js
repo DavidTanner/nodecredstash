@@ -1,4 +1,9 @@
-const { GenerateDataKeyCommand, DecryptCommand, InvalidCiphertextException } = require('@aws-sdk/client-kms');
+const {
+  GenerateDataKeyCommand,
+  DecryptCommand,
+  InvalidCiphertextException,
+  NotFoundException,
+} = require('@aws-sdk/client-kms');
 
 class KeyService {
   constructor(
@@ -22,27 +27,40 @@ class KeyService {
         key: result.Plaintext,
         encodedKey: result.CiphertextBlob,
       };
-    } catch (e) {
-      throw new Error(`Could not generate key using KMS key ${this.keyId} (Details: ${JSON.stringify(e)})`);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Could not generate key using KMS key ${this.keyId} (Details: ${
+        JSON.stringify(error, null, 2)
+      })`);
     }
   }
 
-  async decrypt(CiphertextBlob) {
+  async decrypt(ciphertext) {
     try {
       const response = await this.kms.send(new DecryptCommand({
-        CiphertextBlob,
+        CiphertextBlob: Buffer.from(ciphertext, 'base64'),
         EncryptionContext: this.encryptionContext,
       }));
       return response.Plaintext;
     } catch (error) {
-      if (error instanceof InvalidCiphertextException) {
-        throw new Error('Could not decrypt hmac key with KMS. The credential may '
-        + 'require that an encryption context be provided to decrypt '
-        + 'it.');
+      if (error instanceof NotFoundException) {
+        throw error;
       }
-      throw new Error('Could not decrypt hmac key with KMS. The encryption '
-        + 'context provided may not match the one used when the '
-        + 'credential was stored.');
+      let msg = `Decryption error: ${JSON.stringify(error, null, 2)}`;
+      if (error instanceof InvalidCiphertextException) {
+        if (this.encryptionContext) {
+          msg = 'Could not decrypt hmac key with KMS. The encryption '
+            + 'context provided may not match the one used when the '
+            + 'credential was stored.';
+        } else {
+          msg = 'Could not decrypt hmac key with KMS. The credential may '
+            + 'require that an encryption context be provided to decrypt '
+            + 'it.';
+        }
+      }
+      throw new Error(msg);
     }
   }
 }
