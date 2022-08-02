@@ -1,10 +1,12 @@
 const { ScanCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
-const { DecryptCommand } = require('@aws-sdk/client-kms');
+const { DecryptCommand, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
+const { randomBytes } = require('crypto');
 
 const encryption = require('./utils/encryption');
 const { mockDocClient, mockKms } = require('./utils/awsSdk');
-const encrypter = require('../../src/lib/encrypter');
 const Credstash = require('../../src');
+const { sealAesCtrLegacy } = require('../../src/lib/aesCredstash');
+const { KeyService } = require('../../src/lib/keyService');
 
 let items;
 let kms;
@@ -83,12 +85,21 @@ test('should ignore bad secrets', async () => {
 });
 
 test('should return all secrets, but only latest version', async () => {
+  const kmsResults = {
+    CiphertextBlob: Buffer.from('This is the CiphertextBlob'),
+    Plaintext: Buffer.from(randomBytes(64)),
+  };
+  mockKms.on(GenerateDataKeyCommand).resolves(kmsResults);
+
+  const keyService = new KeyService(mockKms, 'junk');
+
   const item3 = Object.assign({}, item1);
   item3.version = item3.version.replace('1', '2');
   item3.plainText = 'This is a new plaintext';
-  const encrypted = encrypter.encrypt(undefined, item3.plainText, item3.kms);
+  const encrypted = await sealAesCtrLegacy(keyService, item3.plainText);
   item3.contents = encrypted.contents;
   item3.hmac = encrypted.hmac;
+  item3.kms = kmsResults;
 
   addItem(item3);
 

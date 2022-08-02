@@ -1,14 +1,15 @@
-const { NotFoundException, InvalidCiphertextException } = require('@aws-sdk/client-kms');
+const { NotFoundException, InvalidCiphertextException, KMSClient } = require('@aws-sdk/client-kms');
 const { ConditionalCheckFailedException } = require('@aws-sdk/client-dynamodb');
 const debug = require('debug')('credstash');
 
 const DynamoDB = require('./lib/dynamoDb');
 const KMS = require('./lib/kms');
 
-const encrypter = require('./lib/encrypter');
 const decrypter = require('./lib/decrypter');
 const defaults = require('./defaults');
 const utils = require('./lib/utils');
+const { KeyService } = require('./lib/keyService');
+const { sealAesCtrLegacy } = require('./lib/aesCredstash');
 
 module.exports = function (mainConfig) {
   const config = Object.assign({}, mainConfig);
@@ -123,16 +124,15 @@ module.exports = function (mainConfig) {
       }
 
       const version = utils.sanitizeVersion(origVersion, 1); // optional
-
-      return kms.getEncryptionKey(context)
+      const keyService = new KeyService(new KMSClient({}), kmsKey, context);
+      return sealAesCtrLegacy(keyService, secret, digest)
         .catch((err) => {
           if (err instanceof NotFoundException) {
             throw err;
           }
           throw new Error(`Could not generate key using KMS key ${kmsKey}, error:${JSON.stringify(err, null, 2)}`);
         })
-        .then((kmsData) => encrypter.encrypt(digest, secret, kmsData))
-        .then((data) => Object.assign({ name, version }, data))
+        .then((sealed) => Object.assign({ name, version }, sealed))
         .then((data) => ddb.createSecret(data))
         .catch((err) => {
           if (err instanceof ConditionalCheckFailedException) {
@@ -272,15 +272,18 @@ module.exports = function (mainConfig) {
 
           return filtered;
         })
-        .then((secrets) => utils.mapPromise(secrets, (secret) => this.getSecret({
-          name: secret.name,
-          version: secret.version,
-          context,
-        })
-          .then((plainText) => {
+        .then((secrets) => utils.mapPromise(secrets, async (secret) => {
+          try {
+            const plainText = await this.getSecret({
+              name: secret.name,
+              version: secret.version,
+              context,
+            });
             unOrdered[secret.name] = plainText;
-          })
-          .catch(() => undefined)))
+          } catch (e) {
+            debug(`Ran into some issue ${JSON.stringify(e)}`);
+          }
+        }))
         .then(() => {
           const ordered = {};
           Object.keys(unOrdered).sort().forEach((key) => {

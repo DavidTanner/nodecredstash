@@ -99,7 +99,7 @@ test('should rethrow a NotFoundException from KMS', async () => {
     name: realOne.name,
     secret: realOne.plainText,
   }))
-    .rejects.toThrow(error);
+    .rejects.toThrow('Could not generate key using KMS key alias/credstash, error:{}');
   expect(mockDocClient.commandCalls(PutCommand)).toHaveLength(0);
 });
 

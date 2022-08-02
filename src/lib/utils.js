@@ -9,7 +9,7 @@ module.exports = {
 
   calculateHmac(digestArg, key, encrypted) {
     const digest = digestArg || 'SHA256';
-    const decoded = this.b64decode(encrypted);
+    const decoded = Buffer.from(encrypted, 'base64');
     // compute an HMAC using the hmac key and the ciphertext
     const hmac = crypto.createHmac(digest.toLowerCase(), key)
       .update(decoded)
