@@ -8,3 +8,13 @@ test('should return all secret names and versions', async () => {
   const credstash = defCredstash();
   await expect(credstash.listSecrets()).resolves.toEqual(items);
 });
+
+test('can handle empty results', async () => {
+  const credstash = defCredstash();
+
+  mockDocClient.on(ScanCommand).resolves({ Items: [] });
+  await expect(credstash.listSecrets()).resolves.toEqual([]);
+
+  mockDocClient.on(ScanCommand).resolves({});
+  await expect(credstash.listSecrets()).resolves.toEqual([]);
+});

@@ -26,6 +26,11 @@ test('should default to version 0', async () => {
   await expect(credstash.getHighestVersion({
     name: 'name',
   })).resolves.toBe(0);
+
+  mockDocClient.on(QueryCommand).resolves({});
+  await expect(credstash.getHighestVersion({
+    name: 'name',
+  })).resolves.toBe(0);
 });
 
 test('should request by name', async () => {

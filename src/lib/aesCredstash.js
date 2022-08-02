@@ -16,7 +16,7 @@ const halveKey = (key) => {
   };
 };
 
-const sealAesCtr = (plaintext, key, nonce, digest = defaults.DEFAULT_DIGEST) => {
+const sealAesCtr = (plaintext, key, nonce, digest) => {
   const { dataKey, hmacKey } = halveKey(key);
   const bits = dataKey.length * 8;
   const encryptor = createCipheriv(`aes-${bits}-ctr`, dataKey, nonce);

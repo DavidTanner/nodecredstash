@@ -12,6 +12,16 @@ test.each([
   await expect(credstash.deleteSecrets(params)).rejects.toThrow('name is a required parameter');
 });
 
+test('will not fail if no secrets found', async () => {
+  const credstash = defCredstash();
+
+  mockDocClient.on(QueryCommand).resolves({ Items: [] });
+  await expect(credstash.deleteSecrets({ name: 'name' })).resolves.toEqual([]);
+
+  mockDocClient.on(QueryCommand).resolves({});
+  await expect(credstash.deleteSecrets({ name: 'name' })).resolves.toEqual([]);
+});
+
 test('should delete all versions of a given name', async () => {
   const name = 'name';
   const Items = Array.from({ length: 10 }, (v, i) => ({ name, version: `${i}` }));
