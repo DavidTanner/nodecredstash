@@ -1,4 +1,4 @@
-const { ConditionalCheckFailedException } = require('@aws-sdk/client-dynamodb');
+const { ConditionalCheckFailedException, TableNotFoundException } = require('@aws-sdk/client-dynamodb');
 const { PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { GenerateDataKeyCommand, NotFoundException, KMSInternalException } = require('@aws-sdk/client-kms');
 const encryption = require('./utils/encryption');
@@ -9,6 +9,24 @@ let realOne;
 
 beforeEach(() => {
   realOne = Object.assign({}, encryption.credstashKey);
+});
+
+test.each([
+  undefined,
+  {},
+  { secret: 'secret' },
+])('%# should reject missing name', async (putSecretParams) => {
+  const credstash = defCredstash();
+  await expect(credstash.putSecret(putSecretParams)).rejects.toThrow('name is a required parameter');
+  expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(0);
+});
+
+test('should reject a missing secret', async () => {
+  const credstash = defCredstash();
+  await expect(credstash.putSecret({
+    name: 'name',
+  })).rejects.toThrow('secret is a required parameter');
+  expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(0);
 });
 
 test('should create a new stash', async () => {
@@ -127,20 +145,13 @@ test('should notify of duplicate name/version pairs', async () => {
   })).rejects.toThrow('is already in the credential store.');
 });
 
-test.each([
-  undefined,
-  {},
-  { secret: 'secret' },
-])('%# should reject missing name', async (putSecretParams) => {
-  const credstash = defCredstash();
-  await expect(credstash.putSecret(putSecretParams)).rejects.toThrow('name is a required parameter');
-  expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(0);
-});
-
-test('should reject a missing secret', async () => {
+test('should throw other DDB errors', async () => {
+  const error = new TableNotFoundException();
+  mockKms.on(GenerateDataKeyCommand).resolves(realOne.kms);
+  mockDocClient.on(PutCommand).rejects(error);
   const credstash = defCredstash();
   await expect(credstash.putSecret({
-    name: 'name',
-  })).rejects.toThrow('secret is a required parameter');
-  expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(0);
+    name: realOne.name,
+    secret: realOne.plainText,
+  })).rejects.toThrow(error);
 });

@@ -13,6 +13,18 @@ test.each([
   await expect(credstash.getAllVersions(params)).rejects.toThrow('name is a required parameter');
 });
 
+test('will handle no results', async () => {
+  const credentials = defCredstash();
+
+  mockDocClient.on(QueryCommand).resolves({ Items: [] });
+  await expect(credentials.getAllVersions({ name: 'name' }))
+    .resolves.toEqual([]);
+
+  mockDocClient.on(QueryCommand).resolves({ });
+  await expect(credentials.getAllVersions({ name: 'name' }))
+    .resolves.toEqual([]);
+});
+
 test('should fetch and decode the secrets', async () => {
   const name = 'name';
   const limit = 5;
@@ -66,11 +78,11 @@ test('should default to all versions', async () => {
   mockKms.on(DecryptCommand).resolves(rawItem.kms);
 
   const credentials = defCredstash();
-  const allVersions = await credentials.getAllVersions({
+  await expect(credentials.getAllVersions({
     name,
-  });
-  expect(allVersions[0]).toHaveProperty('version', '0000000000000000006');
-  expect(allVersions[0]).toHaveProperty('secret', rawItem.plainText);
+  })).resolves.toEqual([
+    { version: '0000000000000000006', secret: rawItem.plainText },
+  ]);
   expect(mockDocClient.commandCalls(
     QueryCommand,
     { Limit: undefined, ExpressionAttributeValues: { ':name': name } },
