@@ -1,29 +1,34 @@
-const { ulid } = require('ulid');
-const { randomBytes } = require('crypto');
-const {
+import { ulid } from 'ulid';
+import { randomBytes } from 'crypto';
+import {
   DecryptCommand,
   InvalidCiphertextException,
   NotFoundException,
-  GenerateDataKeyCommand,
-} = require('@aws-sdk/client-kms');
+  GenerateDataKeyCommand, KMSClient,
+} from '@aws-sdk/client-kms';
 
-const { KeyService } = require('../../../src/lib/keyService');
+import { KeyService } from '../../../src/lib/keyService';
 
-const { mockKms } = require('../utils/awsSdk');
+import { mockKms } from '../utils/awsSdk';
+import { DEFAULT_KMS_KEY } from '../../../src/defaults';
 
 const KeyId = ulid();
+const kms = new KMSClient({});
 
 const EncryptionContext = { [ulid()]: ulid() };
-const withContext = new KeyService(mockKms, KeyId, EncryptionContext);
-const withOutContext = new KeyService(mockKms, KeyId);
+const withContext = new KeyService(kms, KeyId, EncryptionContext);
+const withOutContext = new KeyService(kms, KeyId);
+const withDefaults = new KeyService(kms);
 
 describe('#generateDataKey', () => {
   const cipherText = Buffer.from(ulid());
   const plainText = randomBytes(64);
   const NumberOfBytes = 64;
 
-  const expectedCalls = (iWith, iWithout) => {
-    expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(iWith + iWithout);
+  const expectedCalls = (iWith: number, iWithoutContext: number, iWithDefaults: number) => {
+    expect(mockKms.commandCalls(GenerateDataKeyCommand)).toHaveLength(
+      iWith + iWithoutContext + iWithDefaults,
+    );
     expect(mockKms.commandCalls(
       GenerateDataKeyCommand,
       { KeyId, NumberOfBytes, EncryptionContext },
@@ -32,7 +37,12 @@ describe('#generateDataKey', () => {
     expect(mockKms.commandCalls(
       GenerateDataKeyCommand,
       { KeyId, NumberOfBytes, EncryptionContext: undefined },
-    )).toHaveLength(iWithout);
+    )).toHaveLength(iWithoutContext);
+
+    expect(mockKms.commandCalls(
+      GenerateDataKeyCommand,
+      { KeyId: DEFAULT_KMS_KEY, NumberOfBytes, EncryptionContext: undefined },
+    )).toHaveLength(iWithDefaults);
   };
 
   test('will return the Plaintext attribute', async () => {
@@ -43,20 +53,27 @@ describe('#generateDataKey', () => {
     });
 
     await expect(withContext.generateDataKey(NumberOfBytes)).resolves.toEqual(expected);
-    expectedCalls(1, 0);
+    expectedCalls(1, 0, 0);
 
     await expect(withOutContext.generateDataKey(NumberOfBytes)).resolves.toEqual(expected);
-    expectedCalls(1, 1);
+    expectedCalls(1, 1, 0);
+
+    await expect(withDefaults.generateDataKey(NumberOfBytes)).resolves.toEqual(expected);
+    expectedCalls(1, 1, 1);
   });
 
   test('will throw NotFoundException', async () => {
+    // @ts-expect-error
     const error = new NotFoundException();
     mockKms.on(GenerateDataKeyCommand).rejects(error);
     await expect(withContext.generateDataKey(NumberOfBytes)).rejects.toThrow(error);
-    expectedCalls(1, 0);
+    expectedCalls(1, 0, 0);
 
     await expect(withOutContext.generateDataKey(NumberOfBytes)).rejects.toThrow(error);
-    expectedCalls(1, 1);
+    expectedCalls(1, 1, 0);
+
+    await expect(withDefaults.generateDataKey(NumberOfBytes)).rejects.toThrow(error);
+    expectedCalls(1, 1, 1);
   });
 
   test('will wrap other errors', async () => {
@@ -66,10 +83,17 @@ describe('#generateDataKey', () => {
     })`;
     mockKms.on(GenerateDataKeyCommand).rejects(error);
     await expect(withContext.generateDataKey(NumberOfBytes)).rejects.toThrow(msg);
-    expectedCalls(1, 0);
+    expectedCalls(1, 0, 0);
 
     await expect(withOutContext.generateDataKey(NumberOfBytes)).rejects.toThrow(msg);
-    expectedCalls(1, 1);
+    expectedCalls(1, 1, 0);
+
+    await expect(withDefaults.generateDataKey(NumberOfBytes)).rejects.toThrow(
+      `Could not generate key using KMS key ${DEFAULT_KMS_KEY} (Details: ${
+        JSON.stringify(error, null, 2)
+      })`,
+    );
+    expectedCalls(1, 1, 1);
   });
 });
 
@@ -77,7 +101,7 @@ describe('#decrypt', () => {
   const cipherText = Buffer.from(ulid());
   const plainText = randomBytes(64);
 
-  const expectedCalls = (iWith, iWithout) => {
+  const expectedCalls = (iWith: number, iWithout: number) => {
     expect(mockKms.commandCalls(DecryptCommand)).toHaveLength(iWith + iWithout);
     expect(mockKms.commandCalls(
       DecryptCommand,
@@ -92,24 +116,25 @@ describe('#decrypt', () => {
   test('will return the Plaintext attribute', async () => {
     mockKms.on(DecryptCommand).resolves({ Plaintext: plainText });
 
-    await expect(withContext.decrypt(cipherText)).resolves.toBe(plainText);
+    await expect(withContext.decrypt(cipherText.toString('base64'))).resolves.toBe(plainText);
     expectedCalls(1, 0);
 
-    await expect(withOutContext.decrypt(cipherText)).resolves.toBe(plainText);
+    await expect(withOutContext.decrypt(cipherText.toString('base64'))).resolves.toBe(plainText);
     expectedCalls(1, 1);
   });
 
   test('should throw an exception for invalid cipherText', async () => {
+    // @ts-expect-error
     mockKms.on(DecryptCommand).rejects(new InvalidCiphertextException());
 
-    await expect(withContext.decrypt(cipherText)).rejects.toThrow(
+    await expect(withContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(
       'Could not decrypt hmac key with KMS. The encryption '
       + 'context provided may not match the one used when the '
       + 'credential was stored.',
     );
     expectedCalls(1, 0);
 
-    await expect(withOutContext.decrypt(cipherText)).rejects.toThrow(
+    await expect(withOutContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(
       'Could not decrypt hmac key with KMS. The credential may '
       + 'require that an encryption context be provided to decrypt '
       + 'it.',
@@ -117,12 +142,13 @@ describe('#decrypt', () => {
     expectedCalls(1, 1);
   });
 
-  test('will throw other exceptions', async () => {
+  test('will throw NotFoundException as is', async () => {
+    // @ts-expect-error
     const error = new NotFoundException();
     mockKms.on(DecryptCommand).rejects(error);
-    await expect(withContext.decrypt(cipherText)).rejects.toThrow(error);
+    await expect(withContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(error);
     expectedCalls(1, 0);
-    await expect(withOutContext.decrypt(cipherText)).rejects.toThrow(error);
+    await expect(withOutContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(error);
     expectedCalls(1, 1);
   });
 
@@ -130,9 +156,9 @@ describe('#decrypt', () => {
     const error = new Error(ulid());
     const msg = `Decryption error: ${JSON.stringify(error, null, 2)}`;
     mockKms.on(DecryptCommand).rejects(error);
-    await expect(withContext.decrypt(cipherText)).rejects.toThrow(msg);
+    await expect(withContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(msg);
     expectedCalls(1, 0);
-    await expect(withOutContext.decrypt(cipherText)).rejects.toThrow(msg);
+    await expect(withOutContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(msg);
     expectedCalls(1, 1);
   });
 });

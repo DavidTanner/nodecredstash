@@ -1,14 +1,20 @@
-const { createCipheriv, createDecipheriv, createHmac } = require('crypto');
-const defaults = require('../defaults');
+import { createCipheriv, createDecipheriv, createHmac } from 'crypto';
+import { DEFAULT_DIGEST } from '../defaults';
+import { KeyService } from './keyService';
+import { SecretRecord } from '../types';
 
 const LEGACY_NONCE = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
 
-const getHmacKey = (key, ciphertext, digestMethod) => createHmac(digestMethod, key)
-  .update(Buffer.from(ciphertext, 'base64'))
+const getHmacKey = (
+  key: Uint8Array,
+  ciphertext: Uint8Array,
+  digestMethod: string,
+) => createHmac(digestMethod, key)
+  .update(ciphertext)
   .digest()
   .toString('hex');
 
-const halveKey = (key) => {
+const halveKey = (key: Uint8Array) => {
   const half = Math.floor(key.length / 2);
   return {
     dataKey: key.slice(0, half),
@@ -16,7 +22,12 @@ const halveKey = (key) => {
   };
 };
 
-const sealAesCtr = (plaintext, key, nonce, digest) => {
+const sealAesCtr = (
+  plaintext: string,
+  key: Uint8Array,
+  nonce: Uint8Array,
+  digest: string,
+) => {
   const { dataKey, hmacKey } = halveKey(key);
   const bits = dataKey.length * 8;
   const encryptor = createCipheriv(`aes-${bits}-ctr`, dataKey, nonce);
@@ -28,12 +39,12 @@ const sealAesCtr = (plaintext, key, nonce, digest) => {
 };
 
 const openAesCtr = (
-  key,
-  nonce,
-  ciphertext,
-  expectedHmac,
-  digestMethod,
-  name,
+  key: Uint8Array,
+  nonce: Uint8Array,
+  ciphertext: Uint8Array,
+  expectedHmac: string,
+  digestMethod: string,
+  name: string,
 ) => {
   const { dataKey, hmacKey } = halveKey(key);
   const bits = dataKey.length * 8;
@@ -57,12 +68,16 @@ const openAesCtr = (
  * @param secret
  * @param digest
  */
-const sealAesCtrLegacy = async (keyService, secret, digest = defaults.DEFAULT_DIGEST) => {
+export const sealAesCtrLegacy = async (
+  keyService: KeyService,
+  secret: string,
+  digest = DEFAULT_DIGEST,
+) => {
   const { key, encodedKey } = await keyService.generateDataKey(64);
   const { ciphertext, hmac } = sealAesCtr(secret, key, LEGACY_NONCE, digest);
 
   return {
-    key: encodedKey.toString('base64'),
+    key: Buffer.from(encodedKey).toString('base64'),
     contents: ciphertext.toString('base64'),
     hmac,
     digest,
@@ -73,18 +88,13 @@ const sealAesCtrLegacy = async (keyService, secret, digest = defaults.DEFAULT_DI
  * Decrypts secrets stored by `seal_aes_ctr_legacy`.
  * Assumes that the plaintext is unicode (non-binary).
  */
-const openAesCtrLegacy = async (
-  keyService,
-  record,
+export const openAesCtrLegacy = async (
+  keyService: KeyService,
+  record: SecretRecord,
 ) => {
   const key = await keyService.decrypt(record.key);
-  const digestMethod = record.digest || defaults.DEFAULT_DIGEST;
+  const digestMethod = record.digest || DEFAULT_DIGEST;
   const ciphertext = Buffer.from(record.contents, 'base64');
-  const hmac = record.hmac.value || record.hmac;
+  const hmac = (record.hmac as { value: string }).value ?? record.hmac as string;
   return openAesCtr(key, LEGACY_NONCE, ciphertext, hmac, digestMethod, record.name);
-};
-
-module.exports = {
-  sealAesCtrLegacy,
-  openAesCtrLegacy,
 };

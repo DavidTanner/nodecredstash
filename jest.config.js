@@ -5,7 +5,10 @@ const testTimeout = inspector.url() ? 1e8 : undefined;
 
 module.exports = {
   testEnvironment: 'node',
-  collectCoverageFrom: ['<rootDir>/src/**/*.js'],
+  transform: {
+    '^.+\\.tsx?$': '@swc/jest',
+  },
+  collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
   collectCoverage: true,
   coverageThreshold: {
     global: {
@@ -20,7 +23,10 @@ module.exports = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
-  testMatch: ['<rootDir>/test/unit/**/*.test.js'],
+  testMatch: [
+    '<rootDir>/test/unit/**/*.test.js',
+    '<rootDir>/test/unit/**/*.test.ts',
+  ],
   verbose: true,
   maxWorkers: 1,
   testTimeout,

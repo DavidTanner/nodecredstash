@@ -1,7 +1,7 @@
-const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 
-const { defCredstash } = require('./utils/general');
-const { mockDocClient } = require('./utils/awsSdk');
+import { mockDocClient } from './utils/awsSdk';
+import { CredStash } from '../../src';
 
 test('should reject non integer versions', () => {
   mockDocClient.on(QueryCommand).resolves({
@@ -11,8 +11,8 @@ test('should reject non integer versions', () => {
       },
     ],
   });
-  const credstash = defCredstash();
-  return credstash.incrementVersion({ name: 'name' })
+  const credStash = new CredStash();
+  return credStash.incrementVersion({ name: 'name' })
     .then(() => 'Should not get here')
     .catch((err) => {
       expect(err.message).toContain('is not an int');
@@ -21,8 +21,8 @@ test('should reject non integer versions', () => {
 
 test('should return a padded version integer', async () => {
   mockDocClient.on(QueryCommand).resolves({ Items: [{ version: '1' }] });
-  const credstash = defCredstash();
-  await expect(credstash.incrementVersion({ name: 'name' })).resolves.toBe('0000000000000000002');
+  const credStash = new CredStash();
+  await expect(credStash.incrementVersion({ name: 'name' })).resolves.toBe('0000000000000000002');
 });
 
 test('should accept name as a param', async () => {
@@ -31,6 +31,6 @@ test('should accept name as a param', async () => {
     QueryCommand,
     { ExpressionAttributeValues: { ':name': name } },
   ).resolves({ Items: [{ version: '1' }] });
-  const credstash = defCredstash();
-  await expect(credstash.incrementVersion({ name })).resolves.toBe('0000000000000000002');
+  const credStash = new CredStash();
+  await expect(credStash.incrementVersion({ name })).resolves.toBe('0000000000000000002');
 });

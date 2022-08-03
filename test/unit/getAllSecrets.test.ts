@@ -1,23 +1,26 @@
-const { ScanCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
-const { DecryptCommand, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
-const { randomBytes } = require('crypto');
+import { ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DecryptCommand,
+  DecryptResponse,
+  GenerateDataKeyCommand,
+  GenerateDataKeyResponse, KMSClient,
+} from '@aws-sdk/client-kms';
+import { randomBytes } from 'crypto';
 
-const encryption = require('./utils/encryption');
-const { mockDocClient, mockKms } = require('./utils/awsSdk');
-const Credstash = require('../../src');
-const { sealAesCtrLegacy } = require('../../src/lib/aesCredstash');
-const { KeyService } = require('../../src/lib/keyService');
+import { item as item1, credStashKey as item2, StaticData } from './utils/encryption';
+import { mockDocClient, mockKms } from './utils/awsSdk';
+import { CredStash } from '../../src';
+import { sealAesCtrLegacy } from '../../src/lib/aesCredstash';
+import { KeyService } from '../../src/lib/keyService';
+import { SecretRecord } from '../../src/types';
 
-let items;
-let kms;
+let items: Record<string, Record<string, SecretRecord>>;
+let kms: Record<string, GenerateDataKeyResponse & DecryptResponse>;
 
-const item1 = encryption.item;
-const item2 = encryption.credstashKey;
-
-const defCredstash = (options) => new Credstash(Object.assign({ awsOpts: { region: 'us-east-1' } }, options));
-
-const addItem = (item) => {
-  items[item.name] = items[item.name] || {};
+const addItem = (item: StaticData) => {
+  if (!items[item.name]) {
+    items[item.name] = {};
+  }
   items[item.name][item.version] = {
     contents: item.contents,
     key: item.key,
@@ -53,8 +56,8 @@ beforeEach(() => {
 });
 
 test('should return all secrets', async () => {
-  const credstash = defCredstash();
-  const res = await credstash.getAllSecrets();
+  const credStash = new CredStash();
+  const res = await credStash.getAllSecrets();
   expect(Object.keys(res)).toHaveLength(2);
   const unsorted = Object.keys(res);
   const sorted = Object.keys(res).sort();
@@ -62,8 +65,8 @@ test('should return all secrets', async () => {
 });
 
 test('should return all secrets starts with "some.secret"', async () => {
-  const credstash = defCredstash();
-  const res = await credstash.getAllSecrets({ startsWith: 'some.secret' });
+  const credStash = new CredStash();
+  const res = await credStash.getAllSecrets({ startsWith: 'some.secret' });
   expect(Object.keys(res)).toHaveLength(1);
   expect(Object.keys(res)[0]).toMatch(/^some.secret.*/);
   const unsorted = Object.keys(res);
@@ -76,8 +79,8 @@ test('should ignore bad secrets', async () => {
   item3.contents += 'hello broken';
   item3.name = 'differentName';
   addItem(item3);
-  const credstash = defCredstash();
-  const res = await credstash.getAllSecrets();
+  const credStash = new CredStash();
+  const res = await credStash.getAllSecrets();
   expect(Object.keys(res)).toHaveLength(2);
   const unsorted = Object.keys(res);
   const sorted = Object.keys(res).sort();
@@ -91,7 +94,7 @@ test('should return all secrets, but only latest version', async () => {
   };
   mockKms.on(GenerateDataKeyCommand).resolves(kmsResults);
 
-  const keyService = new KeyService(mockKms, 'junk');
+  const keyService = new KeyService(new KMSClient({}));
 
   const item3 = Object.assign({}, item1);
   item3.version = item3.version.replace('1', '2');
@@ -103,8 +106,8 @@ test('should return all secrets, but only latest version', async () => {
 
   addItem(item3);
 
-  const credstash = defCredstash();
-  await expect(credstash.getAllSecrets()).resolves.toEqual(expect.objectContaining({
+  const credStash = new CredStash();
+  await expect(credStash.getAllSecrets()).resolves.toEqual(expect.objectContaining({
     [item3.name]: item3.plainText,
   }));
 });

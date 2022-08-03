@@ -1,5 +1,5 @@
-const utils = require('../../../src/lib/utils');
-const { PAD_LEN } = require('../../../src/defaults');
+import { paddedInt, sanitizeVersion, sortSecrets } from '../../../src/lib/utils';
+import { PAD_LEN } from '../../../src/defaults';
 
 const fisherYates = (arrayArg) => {
   const array = arrayArg;
@@ -20,7 +20,7 @@ describe('#paddedInt', () => {
     1,
     12345,
   ])('should left pad with zeros', (i) => {
-    const padded = utils.paddedInt(i);
+    const padded = paddedInt(i);
     const iStr = `${i}`;
     let pad = PAD_LEN - iStr.length;
     pad = pad < 0 ? 0 : pad;
@@ -31,18 +31,23 @@ describe('#paddedInt', () => {
 
 describe('#sanitizeVersion', () => {
   test('should convert a number into a padded string', () => {
-    const version = utils.sanitizeVersion(1);
+    const version = sanitizeVersion(1);
     expect(version).toBe('0000000000000000001');
   });
 
   test('should not change a string version', () => {
     const rawVersion = 'version';
-    const version = utils.sanitizeVersion(rawVersion);
+    const version = sanitizeVersion(rawVersion);
     expect(version).toBe(rawVersion);
   });
 
+  test('will return undefined if provided', () => {
+    const version = sanitizeVersion();
+    expect(version).toBeUndefined();
+  });
+
   test('should default to version 1, padded', () => {
-    const version = utils.sanitizeVersion(undefined, true);
+    const version = sanitizeVersion(undefined, true);
     expect(version).toBe('0000000000000000001');
   });
 });
@@ -53,7 +58,7 @@ describe('#sortSecrets', () => {
     fisherYates(array);
     fisherYates(array);
     fisherYates(array);
-    array.sort(utils.sortSecrets);
+    array.sort(sortSecrets);
     array.forEach((next, idx) => expect(next.name).toBe(`0${idx}`));
   });
 
@@ -62,7 +67,7 @@ describe('#sortSecrets', () => {
     fisherYates(array);
     fisherYates(array);
     fisherYates(array);
-    array.sort(utils.sortSecrets);
+    array.sort(sortSecrets);
     array.forEach((next, idx) => expect(next.version).toBe(`0${9 - idx}`));
   });
 
@@ -74,7 +79,7 @@ describe('#sortSecrets', () => {
     fisherYates(array);
     fisherYates(array);
     fisherYates(array);
-    array.sort(utils.sortSecrets);
+    array.sort(sortSecrets);
     array.forEach((next, idx) => {
       const name = `0${Math.floor(idx / 10)}`;
       const version = `0${Math.floor((99 - idx) % 10)}`;

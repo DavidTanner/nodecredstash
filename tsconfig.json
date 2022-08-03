@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "alwaysStrict": true,
+    "moduleResolution": "node",
+    "target": "es2019",
+    "lib": ["es2020", "dom"],
+    "pretty": true,
+    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+  }
+}
