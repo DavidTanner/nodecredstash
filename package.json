@@ -1,15 +1,21 @@
 {
   "name": "nodecredstash",
-  "version": "2.0.0",
-  "description": "Node.js credstash implementation",
+  "version": "0.0.0",
+  "description": "Node.js CredStash implementation",
   "main": "src/index.js",
+  "files": [
+    "src/**/*.js",
+    "src/**/*.d.ts"
+  ],
   "engines": {
     "node": ">=14",
     "npm": ">=2.14.7"
   },
   "scripts": {
     "test": "npm run lint && jest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "prepublishOnly": "tsc -p tsconfig.build.json",
+    "clean": "tsc --build --clean; rm -rf tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo"
   },
   "keywords": [
     "credstash",
