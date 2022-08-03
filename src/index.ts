@@ -108,7 +108,7 @@ export class CredStash {
       tableName,
     }: PutSecret,
   ) {
-    const version = sanitizeVersion(origVersion, 1); // optional
+    const version = sanitizeVersion(origVersion, 1);
     const keyService = new KeyService(new KMSClient({}), kmsKey, context);
     const sealed = await sealAesCtrLegacy(keyService, secret, digest);
     const data: SecretRecord = Object.assign({ name, version }, sealed);
@@ -130,8 +130,8 @@ export class CredStash {
   async getAllVersions(
     {
       name,
-      context, // optional
-      limit, // optional
+      context,
+      limit,
       kmsKey,
       tableName,
     }: GetAllVersions,
@@ -158,7 +158,7 @@ export class CredStash {
       tableName,
     }: GetSecret,
   ) {
-    const version = sanitizeVersion(origVersion); // optional
+    const version = sanitizeVersion(origVersion);
     const keyService = new KeyService(new KMSClient({}), kmsKey, context);
 
     let record: SecretRecord;
