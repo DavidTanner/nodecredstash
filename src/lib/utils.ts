@@ -1,12 +1,12 @@
-const defaults = require('../defaults');
+import { PAD_LEN } from '../defaults';
 
-const paddedInt = (i) => `${i}`.padStart(defaults.PAD_LEN, '0');
+export const paddedInt = (i: number) => `${i}`.padStart(PAD_LEN, '0');
 
-const pause = (timeout) => new Promise((resolve) => {
+export const pause = (timeout: number) => new Promise((resolve) => {
   setTimeout(resolve, timeout, undefined);
 });
 
-const sanitizeVersion = (version, defaultVersion) => {
+export const sanitizeVersion = (version?: number | string, defaultVersion?: 0 | 1 | boolean) => {
   let sanitized = version;
   if (defaultVersion && !sanitized) {
     sanitized = sanitized || 1;
@@ -20,14 +20,12 @@ const sanitizeVersion = (version, defaultVersion) => {
   return sanitized;
 };
 
-const sortSecrets = (a, b) => {
+export interface SortableSecret {
+  name: string;
+  version: string;
+}
+
+export const sortSecrets = (a: SortableSecret, b: SortableSecret) => {
   const nameDiff = a.name.localeCompare(b.name);
   return nameDiff || b.version.localeCompare(a.version);
-};
-
-module.exports = {
-  pause,
-  sanitizeVersion,
-  sortSecrets,
-  paddedInt,
 };
