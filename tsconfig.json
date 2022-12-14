@@ -3,6 +3,7 @@
     "allowJs": true,
     "alwaysStrict": true,
     "moduleResolution": "node",
+    "module": "CommonJS",
     "target": "es2019",
     "lib": ["es2020", "dom"],
     "pretty": true,
