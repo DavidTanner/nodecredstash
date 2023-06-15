@@ -103,7 +103,7 @@ export const openAesCtrLegacy = async (
   const hmac =
     (record.hmac as { value: string }).value ?? (record.hmac as string);
   const expectedHmac =
-    (hmac as any) instanceof ArrayBuffer
+    (hmac as any) instanceof Uint8Array
       ? Buffer.from(hmac).toString("ascii")
       : hmac;
   return openAesCtr(
