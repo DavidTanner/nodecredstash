@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { paddedInt, sanitizeVersion, sortSecrets } from '../../../src/lib/utils';
 import { PAD_LEN } from '../../../src/defaults';
 

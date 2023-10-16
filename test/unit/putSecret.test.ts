@@ -1,3 +1,4 @@
+import { beforeEach, test, expect } from 'vitest';
 import { ConditionalCheckFailedException, TableNotFoundException } from '@aws-sdk/client-dynamodb';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { GenerateDataKeyCommand, NotFoundException, KMSInternalException } from '@aws-sdk/client-kms';
