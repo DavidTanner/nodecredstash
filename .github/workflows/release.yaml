@@ -9,6 +9,7 @@ on:
 jobs:
   main:
     runs-on: ubuntu-latest
+    environment: DeployEnv
     steps:
       - uses: actions/checkout@v3
         with:
