@@ -12,3 +12,4 @@ jobs:
           node-version: 18.x
       - run: npm i
       - run: npm test
+      - run: npx semantic-release --dry-run --branches ${{ github.head_ref || github.ref_name }}
