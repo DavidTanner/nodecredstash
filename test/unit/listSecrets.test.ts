@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { mockDocClient } from './utils/awsSdk';
 import { CredStash } from '../../src';

@@ -1,5 +1,5 @@
-import { ulid } from 'ulid';
-import { randomBytes } from 'crypto';
+import { describe, test, expect } from 'vitest';
+import { randomBytes, randomUUID } from 'crypto';
 import {
   DecryptCommand,
   InvalidCiphertextException,
@@ -12,16 +12,16 @@ import { KeyService } from '../../../src/lib/keyService';
 import { mockKms } from '../utils/awsSdk';
 import { DEFAULT_KMS_KEY } from '../../../src/defaults';
 
-const KeyId = ulid();
+const KeyId = randomUUID();
 const kms = new KMSClient({});
 
-const EncryptionContext = { [ulid()]: ulid() };
+const EncryptionContext = { [randomUUID()]: randomUUID() };
 const withContext = new KeyService(kms, KeyId, EncryptionContext);
 const withOutContext = new KeyService(kms, KeyId);
 const withDefaults = new KeyService(kms);
 
 describe('#generateDataKey', () => {
-  const cipherText = Buffer.from(ulid());
+  const cipherText = Buffer.from(randomUUID());
   const plainText = randomBytes(64);
   const NumberOfBytes = 64;
 
@@ -77,7 +77,7 @@ describe('#generateDataKey', () => {
   });
 
   test('will wrap other errors', async () => {
-    const error = new Error(ulid());
+    const error = new Error(randomUUID());
     const msg = `Could not generate key using KMS key ${KeyId} (Details: ${
       JSON.stringify(error, null, 2)
     })`;
@@ -98,7 +98,7 @@ describe('#generateDataKey', () => {
 });
 
 describe('#decrypt', () => {
-  const cipherText = Buffer.from(ulid());
+  const cipherText = Buffer.from(randomUUID());
   const plainText = randomBytes(64);
 
   const expectedCalls = (iWith: number, iWithout: number) => {
@@ -153,7 +153,7 @@ describe('#decrypt', () => {
   });
 
   test('will throw other exceptions', async () => {
-    const error = new Error(ulid());
+    const error = new Error(randomUUID());
     const msg = `Decryption error: ${JSON.stringify(error, null, 2)}`;
     mockKms.on(DecryptCommand).rejects(error);
     await expect(withContext.decrypt(cipherText.toString('base64'))).rejects.toThrow(msg);

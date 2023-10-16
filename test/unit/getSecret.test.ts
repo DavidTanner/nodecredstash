@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 import { GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { DecryptCommand, InvalidCiphertextException } from '@aws-sdk/client-kms';
 

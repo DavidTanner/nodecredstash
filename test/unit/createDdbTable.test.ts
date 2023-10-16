@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 import { DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 
 import { mockDdb } from './utils/awsSdk';

@@ -1,4 +1,10 @@
-import { ulid } from 'ulid';
+import {
+  beforeEach,
+  test,
+  expect,
+  describe,
+} from 'vitest';
+import { randomUUID } from 'crypto';
 
 import {
   DescribeTableCommand,
@@ -13,6 +19,7 @@ import {
   PutCommand,
   DeleteCommand, GetCommand, QueryCommandInput, ScanCommandInput,
 } from '@aws-sdk/lib-dynamodb';
+import { NativeAttributeValue } from '@aws-sdk/util-dynamodb';
 
 import { DynamoDB } from '../../../src/lib/dynamoDb';
 import { mockDocClient, mockDdb } from '../utils/awsSdk';
@@ -25,7 +32,7 @@ const dynamo = new DynamoDB(ddb);
 
 const findKeyIndex = (
   records: SecretRecord[],
-  keys: ScanCommandInput['ExclusiveStartKey'] | QueryCommandInput['ExclusiveStartKey'],
+  keys: Record<string, NativeAttributeValue>,
 ) => {
   const index = records.findIndex((item) => {
     let matches = true;
@@ -120,9 +127,9 @@ beforeEach(() => {
   items = Array.from<unknown, SecretRecord>({ length: 30 }, (v, i) => ({
     name: `${i}`,
     version: `${i}`,
-    key: ulid(),
-    contents: ulid(),
-    hmac: ulid(),
+    key: randomUUID(),
+    contents: randomUUID(),
+    hmac: randomUUID(),
   }));
 });
 
@@ -130,7 +137,7 @@ describe('#getAllSecretsAndVersions', () => {
   test.each([
     undefined,
     { limit: 10 },
-    { tableName: ulid() },
+    { tableName: randomUUID() },
   ])('%# should properly page through many results', async (opts) => {
     const TableName = opts?.tableName ?? DEFAULT_TABLE;
     mockQueryScan(items, {
@@ -148,7 +155,7 @@ describe('#getAllSecretsAndVersions', () => {
   });
 });
 
-describe.each([undefined, ulid()])('with provided tableName %s', (tableName) => {
+describe.each([undefined, randomUUID()])('with provided tableName %s', (tableName) => {
   const TableName = tableName ?? DEFAULT_TABLE;
   describe('#getAllVersions', () => {
     test('should properly page through many results', () => {
@@ -289,7 +296,7 @@ describe('#createTable', () => {
   }, 5e3);
 
   test('should not create a table if one exists', async () => {
-    const tableName = ulid();
+    const tableName = randomUUID();
     mockDdb.on(DescribeTableCommand).resolves({});
     await expect(dynamo.createTable()).resolves.not.toThrow();
     await expect(dynamo.createTable({})).resolves.not.toThrow();

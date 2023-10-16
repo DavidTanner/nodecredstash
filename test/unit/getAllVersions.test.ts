@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { DecryptCommand } from '@aws-sdk/client-kms';
 

@@ -1,3 +1,4 @@
+import { beforeEach, test, expect } from 'vitest';
 import { ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import {
   DecryptCommand,

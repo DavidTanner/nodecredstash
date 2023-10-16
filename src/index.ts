@@ -41,6 +41,7 @@ export class CredStash {
   ) {
     this.#kmsClient = new KMSClient(kmsOpts);
     this.#ddb = new DynamoDB(new DynamoDBClient(dynamoOpts));
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const credStash = this;
     Object.getOwnPropertyNames(CredStash.prototype).forEach((key) => {
       const method = credStash[key];
@@ -57,7 +58,7 @@ export class CredStash {
             }
             return res;
           })
-          .catch((err) => {
+          .catch((err: any) => {
             if (cb) {
               return cb(err);
             }

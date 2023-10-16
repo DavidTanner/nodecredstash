@@ -1,3 +1,4 @@
+import { beforeEach, test, expect } from 'vitest';
 import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { mockDocClient } from './utils/awsSdk';
 import { CredStash } from '../../src';
