@@ -1,5 +1,7 @@
 {
-  "extends": "airbnb-base",
+  "extends": [
+    "airbnb-base"
+  ],
   "rules": {
     "func-names": "off",
 
@@ -26,7 +28,8 @@
         "@typescript-eslint"
       ],
       "extends": [
-        "plugin:@typescript-eslint/recommended-requiring-type-checking"
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "airbnb-typescript/base"
       ],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
