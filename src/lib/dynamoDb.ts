@@ -24,7 +24,8 @@ import debugFn from 'debug';
 import { pause } from './utils';
 import {
   NameAndVersionOpts,
-  NameOpts, Opts,
+  NameOpts,
+  Opts,
   QueryOpts,
   SecretRecord,
 } from '../types';
