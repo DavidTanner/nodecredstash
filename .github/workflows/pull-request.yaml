@@ -3,6 +3,17 @@ name: Pull Request Build & Test
 on: pull_request
 
 jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+      - run: npm i
+      - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
   main:
     runs-on: ubuntu-latest
     steps:
@@ -12,4 +23,3 @@ jobs:
           node-version: 18.x
       - run: npm i
       - run: npm test
-      - run: npx semantic-release --dry-run --branches ${{ github.head_ref || github.ref_name }}
