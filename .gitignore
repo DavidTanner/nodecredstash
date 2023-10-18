@@ -42,3 +42,4 @@ test/results
 
 src/**/*.d.ts
 src/**/*.js
+/.eslintcache
