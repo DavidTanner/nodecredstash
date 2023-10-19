@@ -38,7 +38,7 @@ export class CredStash {
       kmsOpts = {},
       dynamoOpts = {},
     }: Configuration = {},
-    ) {
+  ) {
     this.#kmsClient = new KMSClient(kmsOpts);
     this.#ddb = new DynamoDB(new DynamoDBClient(dynamoOpts));
     const credStash = this;
@@ -232,7 +232,7 @@ export class CredStash {
   getAllSecrets(cb: (e: any | Error, data: Record<string, string>) => void): void;
 
   async getAllSecrets(
-    { 
+    {
       version,
       startsWith,
       ...opts
