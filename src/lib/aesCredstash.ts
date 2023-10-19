@@ -1,17 +1,18 @@
-import { createCipheriv, createDecipheriv, createHmac } from "crypto";
-import { DEFAULT_DIGEST } from "../defaults";
-import { KeyService } from "./keyService";
-import { SecretRecord } from "../types";
+import { createCipheriv, createDecipheriv, createHmac } from 'crypto';
+import { DEFAULT_DIGEST } from '../defaults';
+import { KeyService } from './keyService';
+import { SecretRecord } from '../types';
 
-const LEGACY_NONCE = Buffer.from([
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-]);
+const LEGACY_NONCE = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
 
 const getHmacKey = (
   key: Uint8Array,
   ciphertext: Uint8Array,
-  digestMethod: string
-) => createHmac(digestMethod, key).update(ciphertext).digest().toString("hex");
+  digestMethod: string,
+) => createHmac(digestMethod, key)
+  .update(ciphertext)
+  .digest()
+  .toString('hex');
 
 const halveKey = (key: Uint8Array) => {
   const half = Math.floor(key.length / 2);
@@ -25,15 +26,12 @@ const sealAesCtr = (
   plaintext: string,
   key: Uint8Array,
   nonce: Uint8Array,
-  digest: string
+  digest: string,
 ) => {
   const { dataKey, hmacKey } = halveKey(key);
   const bits = dataKey.length * 8;
   const encryptor = createCipheriv(`aes-${bits}-ctr`, dataKey, nonce);
-  const ciphertext = Buffer.concat([
-    encryptor.update(plaintext),
-    encryptor.final(),
-  ]);
+  const ciphertext = Buffer.concat([encryptor.update(plaintext), encryptor.final()]);
   return {
     ciphertext,
     hmac: getHmacKey(hmacKey, ciphertext, digest),
@@ -46,7 +44,7 @@ const openAesCtr = (
   ciphertext: Uint8Array,
   expectedHmac: string,
   digestMethod: string,
-  name: string
+  name: string,
 ) => {
   const { dataKey, hmacKey } = halveKey(key);
   const bits = dataKey.length * 8;
@@ -57,11 +55,8 @@ const openAesCtr = (
   }
 
   const decryptor = createDecipheriv(`aes-${bits}-ctr`, dataKey, nonce);
-  const buffer = Buffer.concat([
-    decryptor.update(ciphertext),
-    decryptor.final(),
-  ]);
-  return buffer.toString("utf-8");
+  const buffer = Buffer.concat([decryptor.update(ciphertext), decryptor.final()]);
+  return buffer.toString('utf-8');
 };
 
 /**
@@ -76,14 +71,14 @@ const openAesCtr = (
 export const sealAesCtrLegacy = async (
   keyService: KeyService,
   secret: string,
-  digest = DEFAULT_DIGEST
+  digest = DEFAULT_DIGEST,
 ) => {
   const { key, encodedKey } = await keyService.generateDataKey(64);
   const { ciphertext, hmac } = sealAesCtr(secret, key, LEGACY_NONCE, digest);
 
   return {
-    key: Buffer.from(encodedKey).toString("base64"),
-    contents: ciphertext.toString("base64"),
+    key: Buffer.from(encodedKey).toString('base64'),
+    contents: ciphertext.toString('base64'),
     hmac,
     digest,
   };
@@ -95,23 +90,13 @@ export const sealAesCtrLegacy = async (
  */
 export const openAesCtrLegacy = async (
   keyService: KeyService,
-  record: SecretRecord
+  record: SecretRecord,
 ) => {
   const key = await keyService.decrypt(record.key);
   const digestMethod = record.digest || DEFAULT_DIGEST;
-  const ciphertext = Buffer.from(record.contents, "base64");
+  const ciphertext = Buffer.from(record.contents, 'base64');
   const hmac =
     (record.hmac as { value: string }).value ?? (record.hmac as string);
-  const expectedHmac =
-    (hmac as any) instanceof Uint8Array
-      ? Buffer.from(hmac).toString("ascii")
-      : hmac;
-  return openAesCtr(
-    key,
-    LEGACY_NONCE,
-    ciphertext,
-    expectedHmac,
-    digestMethod,
-    record.name
-  );
+  const expectedHmac = (hmac as any) instanceof Uint8Array ? Buffer.from(hmac).toString("ascii") : hmac;
+  return openAesCtr(key, LEGACY_NONCE, ciphertext, expectedHmac, digestMethod, record.name);
 };

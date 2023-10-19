@@ -1,16 +1,16 @@
-import { KMSClient } from "@aws-sdk/client-kms";
+import { KMSClient } from '@aws-sdk/client-kms';
 import {
   ConditionalCheckFailedException,
   DeleteItemCommandOutput,
   DynamoDBClient,
-} from "@aws-sdk/client-dynamodb";
-import { PutCommandOutput } from "@aws-sdk/lib-dynamodb";
-import debugFn from "debug";
+} from '@aws-sdk/client-dynamodb';
+import { PutCommandOutput } from '@aws-sdk/lib-dynamodb';
+import debugFn from 'debug';
 
-import { DynamoDB } from "./lib/dynamoDb";
-import { paddedInt, sanitizeVersion, sortSecrets } from "./lib/utils";
-import { KeyService } from "./lib/keyService";
-import { sealAesCtrLegacy, openAesCtrLegacy } from "./lib/aesCredstash";
+import { DynamoDB } from './lib/dynamoDb';
+import { paddedInt, sanitizeVersion, sortSecrets } from './lib/utils';
+import { KeyService } from './lib/keyService';
+import { sealAesCtrLegacy, openAesCtrLegacy } from './lib/aesCredstash';
 import {
   Configuration,
   GetAllSecrets,
@@ -18,14 +18,13 @@ import {
   GetHighestVersionResponse,
   GetSecret,
   NameAndVersionOpts,
-  NameOpts,
-  Opts,
+  NameOpts, Opts,
   PutSecret,
   QueryOpts,
   SecretRecord,
-} from "./types";
+} from './types';
 
-const debug = debugFn("credStash");
+const debug = debugFn('credStash');
 
 export class CredStash {
   readonly #kmsClient: KMSClient;
@@ -34,7 +33,12 @@ export class CredStash {
 
   readonly paddedInt = paddedInt;
 
-  constructor({ kmsOpts = {}, dynamoOpts = {} }: Configuration = {}) {
+  constructor(
+    {
+      kmsOpts = {},
+      dynamoOpts = {},
+    }: Configuration = {},
+    ) {
     this.#kmsClient = new KMSClient(kmsOpts);
     this.#ddb = new DynamoDB(new DynamoDBClient(dynamoOpts));
     const credStash = this;
@@ -43,11 +47,10 @@ export class CredStash {
       credStash[key] = (...args) => {
         const lastArg = args.slice(-1)[0];
         let cb;
-        if (typeof lastArg === "function") {
+        if (typeof lastArg === 'function') {
           cb = args.pop();
         }
-        return method
-          .apply(credStash, args)
+        return method.apply(credStash, args)
           .then((res) => {
             if (cb) {
               return cb(undefined, res);
@@ -69,10 +72,7 @@ export class CredStash {
    */
   getHighestVersion(opts: NameOpts): Promise<string>;
 
-  getHighestVersion(
-    opts: NameOpts,
-    cb: (e: any | Error, version: string) => void
-  ): void;
+  getHighestVersion(opts: NameOpts, cb: (e: any | Error, version: string) => void): void;
 
   async getHighestVersion(opts: NameOpts): Promise<string> {
     const { Items = [] } = await this.#ddb.getLatestVersion(opts);
@@ -82,10 +82,7 @@ export class CredStash {
 
   incrementVersion(opts: NameOpts): Promise<string>;
 
-  incrementVersion(
-    opts: NameOpts,
-    cb: (e: any | Error, version: string) => void
-  ): void;
+  incrementVersion(opts: NameOpts, cb: (e: any | Error, version: string) => void): void;
 
   async incrementVersion(opts: NameOpts) {
     const rawVersion = await this.getHighestVersion(opts);
@@ -93,24 +90,24 @@ export class CredStash {
       const version = Number.parseInt(rawVersion, 10) + 1;
       return paddedInt(version);
     }
-    throw new Error(
-      `Can not autoincrement version. The current version: ${rawVersion} is not an int`
-    );
+    throw new Error(`Can not autoincrement version. The current version: ${rawVersion} is not an int`);
   }
 
   putSecret(opts: PutSecret): Promise<PutCommandOutput>;
 
   putSecret(opts: PutSecret, cb: (e: any | Error) => PutCommandOutput): void;
 
-  async putSecret({
-    name,
-    version: origVersion,
-    secret,
-    context,
-    digest,
-    kmsKey,
-    tableName,
-  }: PutSecret) {
+  async putSecret(
+    {
+      name,
+      version: origVersion,
+      secret,
+      context,
+      digest,
+      kmsKey,
+      tableName,
+    }: PutSecret,
+  ) {
     const version = sanitizeVersion(origVersion, 1);
     const keyService = new KeyService(new KMSClient({}), kmsKey, context);
     const sealed = await sealAesCtrLegacy(keyService, secret, digest);
@@ -120,9 +117,7 @@ export class CredStash {
       return result;
     } catch (err) {
       if (err instanceof ConditionalCheckFailedException) {
-        throw new Error(
-          `${name} version ${version} is already in the credential store.`
-        );
+        throw new Error(`${name} version ${version} is already in the credential store.`);
       }
       throw err;
     }
@@ -130,58 +125,47 @@ export class CredStash {
 
   getAllVersions(opts: GetAllVersions): Promise<GetHighestVersionResponse[]>;
 
-  getAllVersions(
-    opts: GetAllVersions,
-    cb: (e: any | Error, data: GetHighestVersionResponse[]) => void
-  ): void;
+  getAllVersions(opts: GetAllVersions, cb: (e: any | Error, data: GetHighestVersionResponse[]) => void): void;
 
-  async getAllVersions({
-    name,
-    context,
-    limit,
-    kmsKey,
-    tableName,
-  }: GetAllVersions): Promise<GetHighestVersionResponse[]> {
+  async getAllVersions(
+    {
+      name,
+      context,
+      limit,
+      kmsKey,
+      tableName,
+    }: GetAllVersions,
+  ): Promise<GetHighestVersionResponse[]> {
     const keyService = new KeyService(this.#kmsClient, kmsKey, context);
 
-    const { Items = [] } = await this.#ddb.getAllVersions({
-      name,
-      tableName,
-      limit,
-    });
-    return Promise.all(
-      Items.map(async (record) => ({
-        version: record.version,
-        secret: await openAesCtrLegacy(keyService, record),
-      }))
-    );
+    const { Items = [] } = await this.#ddb.getAllVersions({ name, tableName, limit });
+    return Promise.all(Items.map(async (record) => ({
+      version: record.version,
+      secret: await openAesCtrLegacy(keyService, record),
+    })));
   }
 
   getSecret(opts: GetSecret, cb: (e: any | Error, data: string) => void): void;
 
   getSecret(opts: GetSecret): Promise<string>;
 
-  async getSecret({
-    name,
-    context,
-    version: origVersion,
-    kmsKey,
-    tableName,
-  }: GetSecret) {
+  async getSecret(
+    {
+      name,
+      context,
+      version: origVersion,
+      kmsKey,
+      tableName,
+    }: GetSecret,
+  ) {
     const version = sanitizeVersion(origVersion);
     const keyService = new KeyService(new KMSClient({}), kmsKey, context);
 
     let record: SecretRecord;
     if (version) {
-      ({ Item: record } = await this.#ddb.getByVersion({
-        name,
-        version,
-        tableName,
-      }));
+      ({ Item: record } = await this.#ddb.getByVersion({ name, version, tableName }));
     } else {
-      ({
-        Items: [record],
-      } = await this.#ddb.getLatestVersion({ name, tableName }));
+      ({ Items: [record] } = await this.#ddb.getLatestVersion({ name, tableName }));
     }
 
     if (!record || !record.key) {
@@ -194,20 +178,16 @@ export class CredStash {
 
   deleteSecrets(opts: NameOpts): Promise<DeleteItemCommandOutput[]>;
 
-  deleteSecrets(
-    opts: NameOpts,
-    cb: (e: any | Error, data: DeleteItemCommandOutput[]) => void
-  ): void;
+  deleteSecrets(opts: NameOpts, cb: (e: any | Error, data: DeleteItemCommandOutput[]) => void): void;
 
   async deleteSecrets(opts: NameOpts) {
     const { Items = [] } = await this.#ddb.getAllVersions(opts);
 
     const results = [];
     for (const secret of Items) {
-      const result = await this.deleteSecret({
-        ...opts,
-        version: secret.version,
-      });
+      const result = await this.deleteSecret(
+        { ...opts, version: secret.version },
+      );
       results.push(result);
     }
     return results;
@@ -215,19 +195,18 @@ export class CredStash {
 
   deleteSecret(opts: NameAndVersionOpts): Promise<DeleteItemCommandOutput>;
 
-  deleteSecret(
-    opts: NameAndVersionOpts,
-    cb: (e: any | Error, data: DeleteItemCommandOutput) => void
-  ): void;
+  deleteSecret(opts: NameAndVersionOpts, cb: (e: any | Error, data: DeleteItemCommandOutput) => void): void;
 
-  async deleteSecret({
-    version: origVersion,
-    name,
-    ...opts
-  }: NameAndVersionOpts) {
+  async deleteSecret(
+    {
+      version: origVersion,
+      name,
+      ...opts
+    }: NameAndVersionOpts,
+  ) {
     const version = sanitizeVersion(origVersion);
     if (!version) {
-      throw new Error("version is a required parameter");
+      throw new Error('version is a required parameter');
     }
     debug(`Deleting ${name} -- version ${version}`);
     return this.#ddb.deleteSecret({ ...opts, name, version });
@@ -235,15 +214,10 @@ export class CredStash {
 
   listSecrets(opts?: QueryOpts): Promise<{ name: string; version: string }[]>;
 
-  listSecrets(
-    opts: QueryOpts,
-    cb: (e: any | Error, data: { name: string; version: string }[]) => void
-  ): void;
+  listSecrets(opts: QueryOpts, cb: (e: any | Error, data: { name: string; version: string }[]) => void): void;
 
   // @ts-expect-error opts is optional in the signature
-  listSecrets(
-    cb: (e: any | Error, data: { name: string; version: string }[]) => void
-  ): void;
+  listSecrets(cb: (e: any | Error, data: { name: string; version: string }[]) => void): void;
 
   async listSecrets(opts?: QueryOpts) {
     const { Items = [] } = await this.#ddb.getAllSecretsAndVersions(opts);
@@ -252,17 +226,18 @@ export class CredStash {
 
   getAllSecrets(opts?: GetAllSecrets): Promise<Record<string, string>>;
 
-  getAllSecrets(
-    opts: GetAllSecrets,
-    cb: (e: any | Error, data: Record<string, string>) => void
-  ): void;
+  getAllSecrets(opts: GetAllSecrets, cb: (e: any | Error, data: Record<string, string>) => void): void;
 
   // @ts-expect-error opts is optional in the signature
-  getAllSecrets(
-    cb: (e: any | Error, data: Record<string, string>) => void
-  ): void;
+  getAllSecrets(cb: (e: any | Error, data: Record<string, string>) => void): void;
 
-  async getAllSecrets({ version, startsWith, ...opts }: GetAllSecrets = {}) {
+  async getAllSecrets(
+    { 
+      version,
+      startsWith,
+      ...opts
+    }: GetAllSecrets = {},
+  ) {
     const unOrdered = {};
     const secrets = await this.listSecrets(opts);
 
@@ -274,8 +249,7 @@ export class CredStash {
       .filter((secret) => !startsWith || secret.name.startsWith(startsWith))
       .forEach((next) => {
         position[next.name] = position[next.name]
-          ? position[next.name]
-          : filtered.push(next);
+          ? position[next.name] : filtered.push(next);
       });
 
     for (const secret of filtered) {
@@ -289,11 +263,9 @@ export class CredStash {
         debug(`Ran into some issue ${JSON.stringify(e)}`);
       }
     }
-    Object.keys(unOrdered)
-      .sort()
-      .forEach((key) => {
-        ordered[key] = unOrdered[key];
-      });
+    Object.keys(unOrdered).sort().forEach((key) => {
+      ordered[key] = unOrdered[key];
+    });
     return ordered;
   }
 
