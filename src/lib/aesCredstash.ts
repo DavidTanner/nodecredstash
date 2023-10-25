@@ -84,6 +84,10 @@ export const sealAesCtrLegacy = async (
   };
 };
 
+const getHmacAsString = (hmac: string | Uint8Array): string => (
+  typeof hmac === 'string' ? hmac : Buffer.from(hmac).toString('utf-8')
+);
+
 /**
  * Decrypts secrets stored by `seal_aes_ctr_legacy`.
  * Assumes that the plaintext is unicode (non-binary).
@@ -95,6 +99,11 @@ export const openAesCtrLegacy = async (
   const key = await keyService.decrypt(record.key);
   const digestMethod = record.digest || DEFAULT_DIGEST;
   const ciphertext = Buffer.from(record.contents, 'base64');
-  const hmac = (record.hmac as { value: string }).value ?? record.hmac as string;
-  return openAesCtr(key, LEGACY_NONCE, ciphertext, hmac, digestMethod, record.name);
+  let rawHmac: string | Uint8Array;
+  if (typeof record.hmac === 'object' && !(record.hmac instanceof Uint8Array)) {
+    rawHmac = record.hmac.value;
+  } else {
+    rawHmac = record.hmac;
+  }
+  return openAesCtr(key, LEGACY_NONCE, ciphertext, getHmacAsString(rawHmac), digestMethod, record.name);
 };
