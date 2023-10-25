@@ -187,7 +187,7 @@ export class CredStash {
     const results = [];
     for (const secret of Items) {
       const result = await this.deleteSecret(
-        { name: opts.name, version: secret.version },
+        { ...opts, version: secret.version },
       );
       results.push(result);
     }

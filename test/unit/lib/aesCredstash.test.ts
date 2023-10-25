@@ -40,9 +40,17 @@ test.each([
   if (digest) {
     record.hmac = item[`hmac${digest}`];
   }
+  const hmac = record.hmac as string;
+  const uintArray = new TextEncoder().encode(hmac);
 
   await expect(openAesCtrLegacy(keyService, record)).resolves.toBe(item.plainText);
 
-  record.hmac = { value: record.hmac as string };
+  record.hmac = uintArray;
+  await expect(openAesCtrLegacy(keyService, record)).resolves.toBe(item.plainText);
+
+  record.hmac = { value: hmac };
+  await expect(openAesCtrLegacy(keyService, record)).resolves.toBe(item.plainText);
+
+  record.hmac = { value: uintArray };
   await expect(openAesCtrLegacy(keyService, record)).resolves.toBe(item.plainText);
 });
