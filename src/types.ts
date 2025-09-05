@@ -7,7 +7,7 @@ export interface SecretRecord {
   version: string;
   digest?: string;
   contents: string;
-  hmac: string | Uint8Array | { value: string | Uint8Array; };
+  hmac: string | Uint8Array | { value: string | Uint8Array };
 }
 
 export type KMSOpts = ConstructorParameters<typeof KMSClient>[0];

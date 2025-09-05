@@ -4,7 +4,7 @@ import {
   expect,
   describe,
 } from 'vitest';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 import {
   DescribeTableCommand,

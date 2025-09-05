@@ -8,7 +8,7 @@ export interface StaticData extends SecretRecord {
   hmacMd5?: string;
   hmacSha256?: string;
   hmacSha512?: string;
-  kms?: { Plaintext: Uint8Array; CiphertextBlob: Uint8Array; };
+  kms?: { Plaintext: Uint8Array; CiphertextBlob: Uint8Array };
 }
 
 export const item: StaticData = {
@@ -31,6 +31,32 @@ export const item: StaticData = {
     },
     get CiphertextBlob() {
       return Buffer.from('123');
+    },
+  },
+};
+
+export const legacyItem: StaticData = {
+  name: 'Death Star vulnerability',
+  digest: 'SHA256',
+  version: '0000000000000000001',
+  contents: 'qIwrvluzINIiY/6M',
+  key: 'NGZkZmQwZjktMDUzOC00MDUxLThjMmEtOWM4NTFhZDc3OTU3bF3jZ1Zj9+8Gv+WptFFAjtrCURVmpp/ShC3oihDXBI/i/6xc7FT7Ji4FaDFb'
+    + 'tQQdmHJgvF44CIC0WhDGFcPh/ImdvYZPuzFO6eNSwMo3kaU=',
+  hmac: '23071c4fb00012eccbfb8ba71197f01e5a6b2694b4ade55fcf6ebaaa2007d68b',
+
+  plainText: 'Exhaust vent',
+
+  hmacSha256: '',
+  hmacMd5: '',
+  hmacSha512: '',
+
+  kms: {
+    get Plaintext() {
+      return Buffer.from('u4Jb5gRL1hPgn+XwKOz2jGxQ8L+D+cEAiZCGM67ySGA=', 'base64');
+    },
+    get CiphertextBlob() {
+      return Buffer.from('NGZkZmQwZjktMDUzOC00MDUxLThjMmEtOWM4NTFhZDc3OTU3bF3jZ1Zj9+8Gv+WptFFAjtrCURVmpp/ShC3'
+        + 'oihDXBI/i/6xc7FT7Ji4FaDFbtQQdmHJgvF44CIC0WhDGFcPh/ImdvYZPuzFO6eNSwMo3kaU=', 'base64');
     },
   },
 };

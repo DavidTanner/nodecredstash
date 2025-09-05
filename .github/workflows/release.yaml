@@ -5,18 +5,23 @@ on:
     branches:
       - 'master'
 
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
 
 jobs:
   main:
     runs-on: ubuntu-latest
     environment: DeployEnv
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v5
         with:
-          node-version: 18
+          node-version: 20
+      - name: Update npm
+        run: npm install -g npm@latest
       - run: npm i
       - run: npm test
       - name: Release
