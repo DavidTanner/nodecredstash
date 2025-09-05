@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
       - name: Update npm
         run: npm install -g npm@latest
       - run: npm i
