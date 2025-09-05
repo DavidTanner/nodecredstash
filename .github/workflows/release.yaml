@@ -22,7 +22,7 @@ jobs:
           node-version: 20
       - name: Update npm
         run: npm install -g npm@latest
-      - run: npm ci
+      - run: npm i
       - run: npm test
       - name: Release
         env:
