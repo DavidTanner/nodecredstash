@@ -5,6 +5,9 @@ on:
     branches:
       - 'master'
 
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
 
 jobs:
   main:
@@ -17,7 +20,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 20
-      - run: npm i
+      - name: Update npm
+        run: npm install -g npm@latest
+      - run: npm ci
       - run: npm test
       - name: Release
         env:

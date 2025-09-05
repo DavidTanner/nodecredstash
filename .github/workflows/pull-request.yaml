@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 20.x
-      - run: npm i
+      - run: npm ci
       - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
   main:
     runs-on: ubuntu-latest
@@ -21,5 +21,5 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 20.x
-      - run: npm i
+      - run: npm ci
       - run: npm test
