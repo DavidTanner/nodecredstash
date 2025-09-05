@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: DeployEnv
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v5
         with:
-          node-version: 18
+          node-version: 20
       - run: npm i
       - run: npm test
       - name: Release

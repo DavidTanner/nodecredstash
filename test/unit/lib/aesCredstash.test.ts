@@ -1,7 +1,7 @@
 import { beforeEach, test, expect } from 'vitest';
 import { GenerateDataKeyCommand, DecryptCommand, KMSClient } from '@aws-sdk/client-kms';
 import { mockKms } from '../utils/awsSdk';
-import { item } from '../utils/encryption';
+import { item, legacyItem } from '../utils/encryption';
 import { KeyService } from '../../../src/lib/keyService';
 import { sealAesCtrLegacy, openAesCtrLegacy } from '../../../src/lib/aesCredstash';
 import { SecretRecord } from '../../../src/types';
@@ -53,4 +53,11 @@ test.each([
 
   record.hmac = { value: uintArray };
   await expect(openAesCtrLegacy(keyService, record)).resolves.toBe(item.plainText);
+});
+
+test('will decrypt legacy values', async () => {
+  mockKms.on(GenerateDataKeyCommand).resolves(legacyItem.kms);
+  mockKms.on(DecryptCommand).resolves({ Plaintext: legacyItem.kms.Plaintext });
+  const record: SecretRecord = Object.assign({}, legacyItem);
+  await expect(openAesCtrLegacy(keyService, record)).resolves.toBe(legacyItem.plainText);
 });

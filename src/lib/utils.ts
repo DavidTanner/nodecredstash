@@ -16,6 +16,7 @@ export const sanitizeVersion = (version?: number | string, defaultVersion?: 0 | 
     sanitized = paddedInt(sanitized);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-template-expression
   sanitized = (sanitized === undefined) ? sanitized : `${sanitized}`;
   return sanitized;
 };

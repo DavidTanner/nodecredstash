@@ -87,6 +87,7 @@ export class CredStash {
 
   async incrementVersion(opts: NameOpts) {
     const rawVersion = await this.getHighestVersion(opts);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-template-expression
     if (`${rawVersion}`.match(/^[0-9]+$/)) {
       const version = Number.parseInt(rawVersion, 10) + 1;
       return paddedInt(version);

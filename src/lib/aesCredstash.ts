@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHmac } from 'crypto';
+import { createCipheriv, createDecipheriv, createHmac } from 'node:crypto';
 import { DEFAULT_DIGEST } from '../defaults';
 import { KeyService } from './keyService';
 import { SecretRecord } from '../types';
@@ -14,13 +14,13 @@ const getHmacKey = (
   .digest()
   .toString('hex');
 
-const halveKey = (key: Uint8Array) => {
-  const half = Math.floor(key.length / 2);
-  return {
-    dataKey: key.slice(0, half),
-    hmacKey: key.slice(half),
-  };
-};
+const halveKey = (
+  key: Uint8Array,
+  splitPoint = Math.floor(key.length / 2),
+) => ({
+  dataKey: key.slice(0, splitPoint),
+  hmacKey: key.slice(splitPoint),
+});
 
 const sealAesCtr = (
   plaintext: string,
@@ -38,6 +38,29 @@ const sealAesCtr = (
   };
 };
 
+const isOpenAesCtr = (
+  key: Uint8Array,
+  ciphertext: Uint8Array,
+  expectedHmac: string,
+  digestMethod: string,
+  tryLegacy = false,
+) => {
+  const keyLen = tryLegacy ? 32 : undefined;
+
+  const { dataKey, hmacKey } = halveKey(key, keyLen);
+  const bits = dataKey.length * 8;
+  const hmac = getHmacKey(hmacKey, ciphertext, digestMethod);
+  const isMatch = hmac === expectedHmac;
+  if (!tryLegacy && !isMatch) {
+    return isOpenAesCtr(key, ciphertext, expectedHmac, digestMethod, true);
+  }
+  return {
+    isMatch,
+    bits,
+    dataKey,
+  };
+};
+
 const openAesCtr = (
   key: Uint8Array,
   nonce: Uint8Array,
@@ -46,12 +69,11 @@ const openAesCtr = (
   digestMethod: string,
   name: string,
 ) => {
-  const { dataKey, hmacKey } = halveKey(key);
-  const bits = dataKey.length * 8;
-  const hmac = getHmacKey(hmacKey, ciphertext, digestMethod);
+  const { bits, dataKey, isMatch } = isOpenAesCtr(key, ciphertext, expectedHmac, digestMethod);
 
-  if (hmac !== expectedHmac) {
-    throw new Error(`Computed HMAC on ${name} does not match stored HMAC`);
+  if (!isMatch) {
+    const message = `Computed HMAC on ${name} does not match stored HMAC`;
+    throw new Error(message);
   }
 
   const decryptor = createDecipheriv(`aes-${bits}-ctr`, dataKey, nonce);
@@ -90,7 +112,7 @@ const getHmacAsString = (hmac: string | Uint8Array): string => (
 
 /**
  * Decrypts secrets stored by `seal_aes_ctr_legacy`.
- * Assumes that the plaintext is unicode (non-binary).
+ * Assumes that the plaintext is Unicode (non-binary).
  */
 export const openAesCtrLegacy = async (
   keyService: KeyService,

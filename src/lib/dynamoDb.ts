@@ -121,7 +121,7 @@ export class DynamoDB {
       ({ LastEvaluatedKey } = next);
     } while (LastEvaluatedKey);
 
-    return curr as unknown as { Items: SecretRecord[]; };
+    return curr as unknown as { Items: SecretRecord[] };
   }
 
   async getAllSecretsAndVersions({ limit, tableName = DEFAULT_TABLE }: QueryOpts = {}) {
@@ -143,7 +143,7 @@ export class DynamoDB {
       ({ LastEvaluatedKey } = next);
     } while (LastEvaluatedKey);
 
-    return curr as unknown as { Items: SecretRecord[]; };
+    return curr as unknown as { Items: SecretRecord[] };
   }
 
   getLatestVersion(opts: NameOpts) {

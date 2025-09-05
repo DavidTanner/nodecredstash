@@ -6,7 +6,7 @@ import {
   GenerateDataKeyCommand,
   GenerateDataKeyResponse, KMSClient,
 } from '@aws-sdk/client-kms';
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 
 import { item as item1, credStashKey as item2, StaticData } from './utils/encryption';
 import { mockDocClient, mockKms } from './utils/awsSdk';

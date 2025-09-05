@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import {
   DecryptCommand,
   InvalidCiphertextException,
